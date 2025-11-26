@@ -58,14 +58,16 @@ jobs:
           event_json='${{ inputs.event }}'
           labels=$(jq -r '.pull_request.labels[].name // empty' <<< "$event_json" 2>/dev/null || true)
 
+          ###################################################################
           # Determine CUT
+          ###################################################################
           cut="${{ inputs.cut }}"
 
           if [ "$event_name" = "pull_request" ]; then
             if grep -qx "${LBL_BETA}" <<< "$labels"; then cut="beta"; fi
             if grep -qx "${LBL_RC}" <<< "$labels";   then cut="rc"; fi
 
-            # PRs NEVER trigger prod
+            # PRs NUNCA pueden producir prod
             if [ -z "$cut" ] || [ "$cut" = "prod" ]; then
               echo "cut=" >> $GITHUB_OUTPUT
               echo "frameworks=" >> $GITHUB_OUTPUT
@@ -81,9 +83,12 @@ jobs:
             exit 0
           fi
 
+          ###################################################################
           # Determine frameworks affected
+          ###################################################################
           allow=""
 
+          # Manual workflow_dispatch selection
           if [ "$event_name" = "workflow_dispatch" ] && [ -n "${{ inputs.frameworks }}" ]; then
             case "${{ inputs.frameworks }}" in
               camera) allow="cam" ;;
@@ -91,19 +96,31 @@ jobs:
               all) allow="cam core" ;;
             esac
           else
+            # From PR labels
             grep -qx "${LBL_CAM}" <<< "$labels"  && allow="$allow cam"
             grep -qx "${LBL_CORE}" <<< "$labels" && allow="$allow core"
           fi
 
-          allow="$(echo "$allow" | xargs)"  # normalize spaces
+          # Normalize spacing
+          allow="$(echo "$allow" | xargs)"
 
-          # Convert frameworks → JSON array
+          ###################################################################
+          # Convert frameworks → proper JSON array
+          # Must produce EXACTLY:
+          #   ["cam","core"]
+          #   ["cam"]
+          #   []
+          ###################################################################
           if [ -z "$allow" ]; then
             json_array="[]"
           else
-            json_array=$(printf '%s\n' "$allow" | jq -R 'split(" ")')
+            # jq produces JSON but with newlines; remove newlines & spaces
+            json_array=$(printf '%s\n' "$allow" | jq -R 'split(" ")' | tr -d '\n ')
           fi
 
+          ###################################################################
+          # Write final outputs (MUST NOT contain quotes or leading spaces)
+          ###################################################################
           echo "cut=$cut" >> $GITHUB_OUTPUT
           echo "frameworks=$json_array" >> $GITHUB_OUTPUT
           echo "dry=${{ inputs.dry }}" >> $GITHUB_OUTPUT
