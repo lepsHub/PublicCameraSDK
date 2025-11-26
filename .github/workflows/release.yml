@@ -15,7 +15,7 @@ on:
         description: "Frameworks to cut"
         type: choice
         options: [camera, core, all]
-      dry_run:
+      dry:
         description: "Dry run"
         type: boolean
         default: false
@@ -30,7 +30,7 @@ jobs:
     with:
       cut: ${{ github.event.inputs.cut }}
       frameworks: ${{ github.event.inputs.frameworks }}
-      dry_run: ${{ github.event.inputs.dry_run }}
+      dry: ${{ github.event.inputs.dry }}
       event_name: ${{ github.event_name }}
       event: ${{ toJson(github.event) }}
 
@@ -40,7 +40,6 @@ jobs:
     uses: ./.github/workflows/build-sdk.yml
     with:
       frameworks: ${{ needs.prepare.outputs.frameworks }}
-      cut: ${{ needs.prepare.outputs.cut }}
 
   publish:
     needs: [prepare, build]
@@ -49,4 +48,4 @@ jobs:
     with:
       cut: "${{ needs.prepare.outputs.cut }}"
       frameworks: "${{ needs.prepare.outputs.frameworks }}"
-      dry_run: "${{ github.event.inputs.dry || 'false' }}"
+      dry: "${{ needs.prepare.outputs.dry }}"

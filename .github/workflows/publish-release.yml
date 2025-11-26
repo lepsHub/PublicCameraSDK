@@ -10,9 +10,9 @@ on:
         type: string
         required: true
       dry:
-        type: boolean
+        type: string
         required: false
-        default: false
+        default: "false"
 
 permissions:
   contents: write
