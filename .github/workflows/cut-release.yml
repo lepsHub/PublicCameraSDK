@@ -38,20 +38,6 @@ jobs:
       (github.event_name == 'workflow_dispatch')
     runs-on: macos-15
 
-    env:
-      LBL_BETA: cut-beta
-      LBL_RC: cut-rc
-
-      LBL_CAM: CameraSDK
-      LBL_CORE: CoreSDK
-
-      TAGPFX_CAM: 'CameraSDK'
-      TAGPFX_CORE: 'CoreSDK'
-
-      CHANNEL_PLIST_KEY: 'TRVReleaseChannel'
-
-      GH_TOKEN: ${{ github.token }}
-
     steps:
       - uses: actions/checkout@v4
         with:
@@ -78,8 +64,8 @@ jobs:
           else
             has_beta=false
             has_rc=false
-            grep -qx "${{ env.LBL_BETA }}" <<< "$labels" && has_beta=true
-            grep -qx "${{ env.LBL_RC }}" <<< "$labels" && has_rc=true
+            grep -qx "${{ vars.LABEL_BETA }}" <<< "$labels" && has_beta=true
+            grep -qx "${{ vars.LABEL_RC }}" <<< "$labels" && has_rc=true
 
             if [ "$has_beta" = true ] && [ "$has_rc" = true ]; then
               cut="beta,rc"
@@ -103,8 +89,8 @@ jobs:
               all)    allow="cam core" ;;
             esac
           else
-            grep -qx "${{ env.LBL_CAM }}"  <<< "$labels" && allow="${allow} cam"  || true
-            grep -qx "${{ env.LBL_CORE }}" <<< "$labels" && allow="${allow} core" || true
+            grep -qx "${{ vars.LABEL_CAM }}"  <<< "$labels" && allow="${allow} cam"  || true
+            grep -qx "${{ vars.LABEL_CORE }}" <<< "$labels" && allow="${allow} core" || true
             allow="$(echo "$allow" | xargs)"
           fi
 
@@ -146,7 +132,7 @@ jobs:
           write_short_ver () { /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $2" "$1" || /usr/libexec/PlistBuddy -c "Add :CFBundleShortVersionString string $2" "$1"; }
           write_build_num () { /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $2" "$1" || /usr/libexec/PlistBuddy -c "Add :CFBundleVersion string $2" "$1"; }
           write_channel_key () {
-            local plist="$1" val="$2" key="${{ env.CHANNEL_PLIST_KEY }}"
+            local plist="$1" val="$2" key="${{ vars.CHANNEL_PLIST_KEY }}"
             /usr/libexec/PlistBuddy -c "Set :$key $val" "$plist" \
               || /usr/libexec/PlistBuddy -c "Add :$key string $val" "$plist"
           }
@@ -282,12 +268,12 @@ jobs:
             # Format: "key:prefix:path:vdir"
             case "$key" in
               "cam")
-                prefix="${{ env.TAGPFX_CAM }}"
+                prefix="${{ vars.TAGPREFIX_CAMERA }}"
                 path="Libraries/Plugins/Camera/"
                 vdir="Sources/CameraSDK/Generated"
                 ;;
               "core")
-                prefix="${{ env.TAGPFX_CORE }}"
+                prefix="${{ vars.TAGPREFIX_CORE }}"
                 path="Libraries/External/Extended/App/"
                 vdir="Sources/CoreSDK/Generated"
                 ;;
