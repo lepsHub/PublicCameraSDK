@@ -221,23 +221,23 @@ jobs:
           cp "/tmp/${{ matrix.key }}.xcframework.zip" "./${ZIPNAME}"
           CHECKSUM=$(compute_checksum "./${ZIPNAME}")
           cat > Package.swift <<EOF
-// swift-tools-version:5.8
-import PackageDescription
-let package = Package(
-  name: "${{ steps.set_framework_config.outputs.binary }}",
-  products: [
-    .library(name: "${{ steps.set_framework_config.outputs.binary }}", targets: ["${{ steps.set_framework_config.outputs.binary }}Targets"])
-  ],
-  targets: [
-    .binaryTarget(
-      name: "${{ steps.set_framework_config.outputs.binary }}",
-      url: "https://github.com/${{ steps.set_framework_config.outputs.external }}/releases/download/${FULL}/${ZIPNAME}",
-      checksum: "${CHECKSUM}"
-    ),
-    .target(name: "${{ steps.set_framework_config.outputs.binary }}Targets", dependencies: ["${{ steps.set_framework_config.outputs.binary }}"], path: "Sources")
-  ]
-)
-EOF
+            // swift-tools-version:5.8
+            import PackageDescription
+            let package = Package(
+            name: "${{ steps.set_framework_config.outputs.binary }}",
+            products: [
+                .library(name: "${{ steps.set_framework_config.outputs.binary }}", targets: ["${{ steps.set_framework_config.outputs.binary }}Targets"])
+            ],
+            targets: [
+                .binaryTarget(
+                name: "${{ steps.set_framework_config.outputs.binary }}",
+                url: "https://github.com/${{ steps.set_framework_config.outputs.external }}/releases/download/${FULL}/${ZIPNAME}",
+                checksum: "${CHECKSUM}"
+                ),
+                .target(name: "${{ steps.set_framework_config.outputs.binary }}Targets", dependencies: ["${{ steps.set_framework_config.outputs.binary }}"], path: "Sources")
+            ]
+            )
+            EOF
           git checkout -b "$FULL" || git checkout "$FULL" || true
           git add Package.swift
           if ! git diff --cached --quiet; then git commit -m "SPM: Update Package.swift for $FULL"; fi
