@@ -1,0 +1,74 @@
+name: Build SDKs
+on:
+  workflow_call:
+    inputs:
+      frameworks:
+        type: string
+        required: true
+      cut:
+        type: string
+        required: true
+    outputs: {}
+
+jobs:
+  build:
+    runs-on: macos-15
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Tooling
+        run: |
+          brew update >/dev/null
+          brew install jq xcodegen >/dev/null || true
+
+      - name: Generate Xcode project
+        run: |
+          make genbuild
+          proj=$(ls -1 *.xcodeproj | head -n1)
+          echo "PROJECT=$proj" >> $GITHUB_ENV
+
+      - name: Build frameworks
+        run: |
+          set -eo pipefail
+
+          for s in ${{ inputs.frameworks }}; do
+            if [ "$s" = "cam" ]; then SCHEME="CameraSDK"; fi
+            if [ "$s" = "core" ]; then SCHEME="CoreSDK"; fi
+
+            mkdir -p build/$s
+
+            echo "::group::Archive iOS ($s)"
+            xcodebuild archive \
+              -scheme "$SCHEME" \
+              -destination "generic/platform=iOS" \
+              -archivePath build/$s/ios.xcarchive \
+              SKIP_INSTALL=NO BUILD_LIBRARY_FOR_DISTRIBUTION=YES
+            echo "::endgroup::"
+
+            echo "::group::Archive Simulator ($s)"
+            xcodebuild archive \
+              -scheme "$SCHEME" \
+              -destination "generic/platform=iOS Simulator" \
+              -archivePath build/$s/sim.xcarchive \
+              SKIP_INSTALL=NO BUILD_LIBRARY_FOR_DISTRIBUTION=YES
+            echo "::endgroup::"
+
+            echo "::group::Create XCFramework ($s)"
+            xcodebuild -create-xcframework \
+              -framework "build/$s/ios.xcarchive/Products/Library/Frameworks/${SCHEME}.framework" \
+              -framework "build/$s/sim.xcarchive/Products/Library/Frameworks/${SCHEME}.framework" \
+              -output "build/$SCHEME.xcframework"
+            echo "::endgroup::"
+
+            cd build && zip -r "${SCHEME}.xcframework.zip" "${SCHEME}.xcframework" && cd ..
+
+            echo "Artifact generated: build/${SCHEME}.xcframework.zip"
+          done
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: xcframeworks
+          path: build/*.xcframework.zip
