@@ -70,7 +70,7 @@ jobs:
           xcodebuild -create-xcframework \
             -framework "build/${{ steps.load_script.outputs.scheme }}/ios.xcarchive/Products/Library/Frameworks/${{ steps.load_script.outputs.scheme }}.framework" \
             -framework "build/${{ steps.load_script.outputs.scheme }}/sim.xcarchive/Products/Library/Frameworks/${{ steps.load_script.outputs.scheme }}.framework" \
-            -output "build/${{ steps.load_script.outputs.scheme }.xcframework"
+            -output "build/${{ steps.load_script.outputs.scheme }}.xcframework"
           echo "::endgroup::"
 
       - name: Pack XCFramework into ZIP
