@@ -1,74 +1,86 @@
 name: Build SDKs
+
 on:
   workflow_call:
     inputs:
       frameworks:
         type: string
         required: true
-      cut:
-        type: string
-        required: true
-    outputs: {}
+
+permissions:
+  contents: read
 
 jobs:
   build:
     runs-on: macos-15
+    strategy:
+      matrix:
+        key: ${{ fromJson(inputs.frameworks) }}
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Tooling
+      - name: Load script and config
+        run: |
+          chmod +x .github/scripts/release-lib.sh
+          source .github/scripts/release-lib.sh
+          framework_config "${{ matrix.key }}"
+          echo "scheme=${SCHEME}" >> $GITHUB_OUTPUT
+          echo "key=${{ matrix.key }}" >> $GITHUB_OUTPUT
+
+      - name: Ensure tooling (xcodegen / jq)
         run: |
           brew update >/dev/null
           brew install jq xcodegen >/dev/null || true
 
-      - name: Generate Xcode project
+      - name: Generate Xcode project (if needed)
         run: |
-          make genbuild
-          proj=$(ls -1 *.xcodeproj | head -n1)
-          echo "PROJECT=$proj" >> $GITHUB_ENV
+          if [ -f "Makefile" ]; then
+            make genbuild || true
+          fi
 
-      - name: Build frameworks
+      - name: Archive iOS (device)
         run: |
           set -eo pipefail
+          echo "::group::Archive ${SCHEME} (iOS device)"
+          xcodebuild archive -scheme "${{ steps.load_script.outputs.scheme }}" \
+            -destination "generic/platform=iOS" \
+            -archivePath "build/${{ steps.load_script.outputs.scheme }}/ios.xcarchive" \
+            SKIP_INSTALL=NO BUILD_LIBRARY_FOR_DISTRIBUTION=YES
+          echo "::endgroup::"
 
-          for s in ${{ inputs.frameworks }}; do
-            if [ "$s" = "cam" ]; then SCHEME="CameraSDK"; fi
-            if [ "$s" = "core" ]; then SCHEME="CoreSDK"; fi
+      - name: Archive Simulator
+        run: |
+          set -eo pipefail
+          echo "::group::Archive ${SCHEME} (Simulator)"
+          xcodebuild archive -scheme "${{ steps.load_script.outputs.scheme }}" \
+            -destination "generic/platform=iOS Simulator" \
+            -archivePath "build/${{ steps.load_script.outputs.scheme }}/sim.xcarchive" \
+            SKIP_INSTALL=NO BUILD_LIBRARY_FOR_DISTRIBUTION=YES
+          echo "::endgroup::"
 
-            mkdir -p build/$s
+      - name: Create XCFramework
+        run: |
+          set -eo pipefail
+          mkdir -p build/${{ steps.load_script.outputs.scheme }}
+          echo "::group::Create XCFramework ${SCHEME}"
+          xcodebuild -create-xcframework \
+            -framework "build/${{ steps.load_script.outputs.scheme }}/ios.xcarchive/Products/Library/Frameworks/${{ steps.load_script.outputs.scheme }}.framework" \
+            -framework "build/${{ steps.load_script.outputs.scheme }}/sim.xcarchive/Products/Library/Frameworks/${{ steps.load_script.outputs.scheme }}.framework" \
+            -output "build/${{ steps.load_script.outputs.scheme }.xcframework"
+          echo "::endgroup::"
 
-            echo "::group::Archive iOS ($s)"
-            xcodebuild archive \
-              -scheme "$SCHEME" \
-              -destination "generic/platform=iOS" \
-              -archivePath build/$s/ios.xcarchive \
-              SKIP_INSTALL=NO BUILD_LIBRARY_FOR_DISTRIBUTION=YES
-            echo "::endgroup::"
+      - name: Pack XCFramework into ZIP
+        run: |
+          mkdir -p build
+          zip -r "build/${{ steps.load_script.outputs.scheme }}.xcframework.zip" "build/${{ steps.load_script.outputs.scheme }}.xcframework" || true
+          ls -la build
 
-            echo "::group::Archive Simulator ($s)"
-            xcodebuild archive \
-              -scheme "$SCHEME" \
-              -destination "generic/platform=iOS Simulator" \
-              -archivePath build/$s/sim.xcarchive \
-              SKIP_INSTALL=NO BUILD_LIBRARY_FOR_DISTRIBUTION=YES
-            echo "::endgroup::"
-
-            echo "::group::Create XCFramework ($s)"
-            xcodebuild -create-xcframework \
-              -framework "build/$s/ios.xcarchive/Products/Library/Frameworks/${SCHEME}.framework" \
-              -framework "build/$s/sim.xcarchive/Products/Library/Frameworks/${SCHEME}.framework" \
-              -output "build/$SCHEME.xcframework"
-            echo "::endgroup::"
-
-            cd build && zip -r "${SCHEME}.xcframework.zip" "${SCHEME}.xcframework" && cd ..
-
-            echo "Artifact generated: build/${SCHEME}.xcframework.zip"
-          done
-
-      - uses: actions/upload-artifact@v4
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
         with:
-          name: xcframeworks
+          name: ${{ matrix.key }}-artifact
           path: build/*.xcframework.zip
