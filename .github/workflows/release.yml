@@ -47,6 +47,6 @@ jobs:
     if: ${{ needs.prepare.outputs.cut != '' && needs.prepare.outputs.frameworks != '' }}
     uses: ./.github/workflows/publish-release.yml
     with:
-      cut: ${{ needs.prepare.outputs.cut }}
-      frameworks: ${{ needs.prepare.outputs.frameworks }}
-      dry_run: ${{ needs.prepare.outputs.dry }}
+      cut: "${{ needs.prepare.outputs.cut }}"
+      frameworks: "${{ needs.prepare.outputs.frameworks }}"
+      dry_run: "${{ github.event.inputs.dry || 'false' }}"
