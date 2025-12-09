@@ -335,4 +335,4 @@ jobs:
 
       - name: Final log
         run: |
-          log_step "Publish pipeline finished for ${{ matrix.key }} (dry=${{ inputs.dry }})"
+          echo "Publish pipeline finished for ${{ matrix.key }} (dry=${{ inputs.dry }})"
