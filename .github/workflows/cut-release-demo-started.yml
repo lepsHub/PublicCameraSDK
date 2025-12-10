@@ -1,4 +1,4 @@
-name: Cut Release Demo
+name: Cut Release Demo-Started
 
 on:
   pull_request:
