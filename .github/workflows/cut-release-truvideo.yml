@@ -1,4 +1,4 @@
-name: Cut Release Refactor
+name: Cut Release TruVideo
 
 on:
   pull_request:
