@@ -71,8 +71,15 @@ jobs:
         run: |
           set -eo pipefail
 
-          # Extract labels safely (one per line)
-          labels="$(jq -r '.pull_request.labels[].name // empty' "$GITHUB_EVENT_PATH" 2>/dev/null | sed '/^\s*$/d')"
+          # Use runtime env and the event JSON rather than YAML expansions
+          EVENT_FILE="${GITHUB_EVENT_PATH:-}"
+          EVENT_NAME="${GITHUB_EVENT_NAME:-}"
+
+          # Extract labels safely (one per line); only when PR event has labels
+          labels=""
+          if [ -n "$EVENT_FILE" ]; then
+            labels="$(jq -r '.pull_request.labels[].name // empty' "$EVENT_FILE" 2>/dev/null | sed '/^\s*$/d' || true)"
+          fi
 
           # Trim safely removing double spaces, leading/trailing
           safe_trim() {
@@ -93,42 +100,41 @@ jobs:
           # CUT TYPE
           # ---------------------------
           cut=""
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ github.event.inputs.cut }}" ]; then
-            cut="${{ github.event.inputs.cut }}"
-          else
-            if grep -Fxq "${{ env.LBL_BETA }}" <<< "$labels"; then
-              cut="beta"
-            fi
-            if grep -Fxq "${{ env.LBL_RC }}" <<< "$labels"; then
-              cut="rc"
-            fi
-            if grep -Fxq "${{ env.LBL_PROD }}" <<< "$labels"; then
-              cut="prod"
-            fi
+
+          # read inputs safely from event json if workflow_dispatch
+          if [ "$EVENT_NAME" = "workflow_dispatch" ] && [ -n "$EVENT_FILE" ]; then
+            cut="$(jq -r '.inputs.cut // empty' "$EVENT_FILE" 2>/dev/null || true)"
           fi
 
           if [ -z "$cut" ]; then
-            echo "cut=" >> $GITHUB_OUTPUT
-            echo "aff=" >> $GITHUB_OUTPUT
-            echo "dry=" >> $GITHUB_OUTPUT
-            exit 0
+            # fallback to labels
+            if grep -Fxq "${LBL_BETA}" <<< "$labels"; then
+              cut="beta"
+            fi
+            if grep -Fxq "${LBL_RC}" <<< "$labels"; then
+              cut="rc"
+            fi
+            if grep -Fxq "${LBL_PROD:-}" <<< "$labels"; then
+              cut="prod"
+            fi
           fi
 
           # ---------------------------
           # FRAMEWORKS (AFF)
           # ---------------------------
           allow=""
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ github.event.inputs.frameworks }}" ]; then
-            case "${{ github.event.inputs.frameworks }}" in
+          if [ "$EVENT_NAME" = "workflow_dispatch" ] && [ -n "$EVENT_FILE" ]; then
+            frameworks="$(jq -r '.inputs.frameworks // empty' "$EVENT_FILE" 2>/dev/null || true)"
+            case "$frameworks" in
               camera) allow="cam" ;;
               core) allow="core" ;;
               all) allow="cam core" ;;
             esac
           else
-            if grep -Fxq "${{ env.LBL_CAM }}" <<< "$labels"; then
+            if grep -Fxq "${LBL_CAM}" <<< "$labels"; then
               allow="$allow cam"
             fi
-            if grep -Fxq "${{ env.LBL_CORE }}" <<< "$labels"; then
+            if grep -Fxq "${LBL_CORE}" <<< "$labels"; then
               allow="$allow core"
             fi
           fi
@@ -136,21 +142,41 @@ jobs:
           allow="$(safe_trim "$allow")"
           final="$(sanitize_aff "$allow")"
 
-          echo "cut=$cut" >> $GITHUB_OUTPUT
-          echo "aff=$final" >> $GITHUB_OUTPUT
-          echo "dry=${{ github.event.inputs.dry_run }}" >> $GITHUB_OUTPUT
-      - name: Debug workflow expression lengths
-        run: |
-          echo "CUT length: $(echo -n '${{ steps.scope.outputs.cut }}' | wc -c)"
-          echo "AFF length: $(echo -n '${{ steps.scope.outputs.aff }}' | wc -c)"
-          echo "DRY length: $(echo -n '${{ steps.scope.outputs.dry }}' | wc -c)"
+          # dry run input (safe read)
+          dry="false"
+          if [ -n "$EVENT_FILE" ]; then
+            dry="$(jq -r '.inputs.dry_run // "false"' "$EVENT_FILE" 2>/dev/null || true)"
+          fi
+
+          # Export outputs for other steps (GitHub outputs + file in workspace)
+          echo "cut=$cut" >> "$GITHUB_OUTPUT"
+          echo "aff=$final" >> "$GITHUB_OUTPUT"
+          echo "dry=$dry" >> "$GITHUB_OUTPUT"
+
+          # Also persist to a file so subsequent steps can source it without YAML interpolation
+          SCOPE_FILE="$GITHUB_WORKSPACE/.cut_release_scope"
+          printf 'CUT=%s\nAFF=%s\nDRY=%s\n' "$cut" "$final" "$dry" > "$SCOPE_FILE"
+          echo "Wrote scope to $SCOPE_FILE"
       - name: Reset SwiftPM caches
         run: |
             rm -rf ~/Library/Caches/org.swift.swiftpm
+
       - name: Generate Xcode project
-        if: ${{ steps.scope.outputs.aff != '' }}
         run: |
           set -eo pipefail
+          # load scope vars produced by the previous step
+          SCOPE_FILE="$GITHUB_WORKSPACE/.cut_release_scope"
+          if [ ! -f "$SCOPE_FILE" ]; then
+            echo "Scope file not found; exiting (nothing to cut)."
+            exit 0
+          fi
+          # shellcheck source=/dev/null
+          source "$SCOPE_FILE"
+          if [ -z "${AFF:-}" ]; then
+            echo "AFF is empty; skipping generate Xcode project."
+            exit 0
+          fi
+
           make genbuild
           if [ -f "TruvideoSDK.xcodeproj/project.pbxproj" ]; then
             proj="TruvideoSDK.xcodeproj"
@@ -164,13 +190,27 @@ jobs:
           echo "Using PROJECT=$proj"
 
       - name: Compute versions, update Info.plist, generate Version.swift, tag & release
-        if: ${{ steps.scope.outputs.cut != '' && steps.scope.outputs.aff != '' }}
         shell: bash
         env:
-          CUT: ${{ steps.scope.outputs.cut }}
-          DRY: ${{ steps.scope.outputs.dry }}
+          # safe small expressions only
+          GH_TOKEN: ${{ secrets.GH_EXTERNAL_PAT }}
         run: |
           set -eo pipefail
+
+          # load scope vars produced by the scope step
+          SCOPE_FILE="$GITHUB_WORKSPACE/.cut_release_scope"
+          if [ ! -f "$SCOPE_FILE" ]; then
+            echo "Scope file not found; exiting (nothing to cut)."
+            exit 0
+          fi
+          # shellcheck source=/dev/null
+          source "$SCOPE_FILE"
+
+          # Only continue if both CUT and AFF are set
+          if [ -z "${CUT:-}" ] || [ -z "${AFF:-}" ]; then
+            echo "CUT or AFF empty; nothing to do."
+            exit 0
+          fi
 
           cut="$CUT"
           dry="$DRY"
@@ -180,7 +220,7 @@ jobs:
           write_short_ver () { /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $2" "$1" || /usr/libexec/PlistBuddy -c "Add :CFBundleShortVersionString string $2" "$1"; }
           write_build_num () { /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $2" "$1" || /usr/libexec/PlistBuddy -c "Add :CFBundleVersion string $2" "$1"; }
           write_channel_key () {
-            local plist="$1" val="$2" key="${{ env.CHANNEL_PLIST_KEY }}"
+            local plist="$1" val="$2" key="${CHANNEL_PLIST_KEY}"
             /usr/libexec/PlistBuddy -c "Set :$key $val" "$plist" \
               || /usr/libexec/PlistBuddy -c "Add :$key string $val" "$plist"
           }
@@ -204,8 +244,8 @@ jobs:
             echo "[DEBUG bump] range=$2" >&2
             git log --format='%h %s' $2 >&2
           }
-          
 
+          # (functions next_beta_n, last_beta_n, next_rc_n, etc. unchanged)
           next_beta_n () {
             local prefix="$1" base="$2" max=0
             while read -r t; do [ -z "$t" ] && continue
@@ -253,7 +293,7 @@ jobs:
             done < <( { git tag -l "${prefix}-${base}-BETA.*"; git tag -l "${prefix}-${base}-RC.*"; } )
             echo "$max"
           }
-          
+
           next_global_build_number() {
             local prefix="$1" base="$2" max=0
             while read -r t; do
@@ -315,17 +355,15 @@ jobs:
 
           cut_for () {
             local key="$1" cut_type="$2" prefix path vdir channel full base_ver build_num prerelease title
-            
-            # Framework configuration - easily extensible
-            # Format: "key:prefix:path:vdir"
+
             case "$key" in
               "cam")
-                prefix="${{ env.TAGPFX_CAM }}"
+                prefix="${TAGPFX_CAM}"
                 path="Libraries/Plugins/Camera/"
                 vdir="Sources/TruvideoSdkCamera/Generated"
                 ;;
               "core")
-                prefix="${{ env.TAGPFX_CORE }}"
+                prefix="${TAGPFX_CORE}"
                 path="Libraries/External/Extended/App/"
                 vdir="Sources/TruvideoSdk/Generated"
                 ;;
@@ -368,7 +406,7 @@ jobs:
               prerelease="false"
               title="Production release for **$prefix $base_ver**."
             fi
-            
+
             while read -r plist; do
               [ -z "$plist" ] && continue
               cur_short="$(read_short_ver "$plist")"
@@ -376,7 +414,7 @@ jobs:
               write_build_num "$plist" "$build_num"
               write_channel_key "$plist" "$channel"
             done < <(find_plists "$path")
-            
+
             gen_version_swift "$vdir" "$full" "$channel" "$build_num"
 
             # Changelog body (since last prod)
@@ -404,7 +442,7 @@ jobs:
               echo "[DRY RUN] Would tag: $tag"
               echo "[DRY RUN] Would create release:"; echo "$body"
               return 0
-            fi            
+            fi
             git add "$path" || true
             if [ -f "$vdir/Version.swift" ] && ! git check-ignore -q "$vdir/Version.swift"; then
               git add "$vdir/Version.swift"
@@ -454,8 +492,8 @@ jobs:
 
               echo "== Creating external lightweight tag: ${external_prefixless_tag} on ${external_repo} =="
 
-              AUTH_REPO_URL="https://${{ secrets.GH_EXTERNAL_PAT }}:x-oauth-basic@github.com/${external_repo}.git"
-              PUSH_REPO_URL="https://${{ secrets.GH_EXTERNAL_PAT }}@github.com/${external_repo}.git"
+              AUTH_REPO_URL="https://${GH_TOKEN}:x-oauth-basic@github.com/${external_repo}.git"
+              PUSH_REPO_URL="https://${GH_TOKEN}@github.com/${external_repo}.git"
 
               # Correct authenticated check
               if git ls-remote --tags "$AUTH_REPO_URL" | grep -q "refs/tags/${external_prefixless_tag}"; then
@@ -511,7 +549,7 @@ jobs:
 
             echo "== Preparing Pod repo $POD_REPO =="
             rm -rf /tmp/podrepo || true
-            git clone "https://${{ secrets.GH_EXTERNAL_PAT }}@github.com/${POD_REPO}.git" /tmp/podrepo
+            git clone "https://${GH_TOKEN}@github.com/${POD_REPO}.git" /tmp/podrepo
             cd /tmp/podrepo
             git config user.name "truvideo[bot]"
             git config user.email "truvideo[bot]@users.noreply.github.com"
@@ -535,8 +573,8 @@ jobs:
 
             # create and push tag (lightweight) on pod repo
             git tag "$external_prefixless_tag" || true
-            git push "https://${{ secrets.GH_EXTERNAL_PAT }}@github.com/${POD_REPO}.git" "refs/heads/${external_prefixless_tag}:refs/heads/${external_prefixless_tag}" || true
-            git push "https://${{ secrets.GH_EXTERNAL_PAT }}@github.com/${POD_REPO}.git" "refs/tags/${external_prefixless_tag}" || {
+            git push "https://${GH_TOKEN}@github.com/${POD_REPO}.git" "refs/heads/${external_prefixless_tag}:refs/heads/${external_prefixless_tag}" || true
+            git push "https://${GH_TOKEN}@github.com/${POD_REPO}.git" "refs/tags/${external_prefixless_tag}" || {
               echo "ERROR pushing tag to pod repo ${POD_REPO}"
               exit 1
             }
@@ -608,7 +646,7 @@ jobs:
 
             echo "== Updating SPM repo ${SPM_REPO} =="
             rm -rf /tmp/spm || true
-            git clone "https://${{ secrets.GH_EXTERNAL_PAT }}@github.com/${SPM_REPO}.git" /tmp/spm
+            git clone "https://${GH_TOKEN}@github.com/${SPM_REPO}.git" /tmp/spm
             cd /tmp/spm
             git config user.name "truvideo[bot]"
             git config user.email "truvideo[bot]@users.noreply.github.com"
@@ -663,41 +701,39 @@ jobs:
             if ! git diff --cached --quiet; then
               git commit -m "SPM: Update Package.swift for $external_prefixless_tag"
             fi
-            git push "https://${{ secrets.GH_EXTERNAL_PAT }}@github.com/${SPM_REPO}.git" "refs/heads/${external_prefixless_tag}" || true
+            git push "https://${GH_TOKEN}@github.com/${SPM_REPO}.git" "refs/heads/${external_prefixless_tag}" || true
             git tag "$external_prefixless_tag" || true
-            git push "https://${{ secrets.GH_EXTERNAL_PAT }}@github.com/${SPM_REPO}.git" "refs/tags/${external_prefixless_tag}" || true
+            git push "https://${GH_TOKEN}@github.com/${SPM_REPO}.git" "refs/tags/${external_prefixless_tag}" || true
             gh api -X POST "repos/${SPM_REPO}/releases" -f tag_name="$external_prefixless_tag" -f name="$external_prefixless_tag" -f body="$body" -F prerelease=$prerelease >/dev/null || true
             echo "SPM repo updated: ${SPM_REPO}"
           }
 
-          for s in ${{ steps.scope.outputs.aff }}; do
-            for cut_type in $(echo "${{ steps.scope.outputs.cut }}" | tr ',' ' '); do
+          # iterate over AFF (space separated)
+          IFS=' ' read -r -a AFF_ARR <<< "${AFF}"
+          for s in "${AFF_ARR[@]}"; do
+            # iterate over cut types (comma or space separated)
+            IFS=', ' read -r -a CUT_ARR <<< "${cut}"
+            for cut_type in "${CUT_ARR[@]}"; do
               cut_for "$s" "$cut_type"
             done
           done
 
           echo "---- ➡️➡️➡️➡️➡️ DEBUG VERSION CALC ----"
-          echo "prefix=$prefix" 
-          echo "cut_type=$cut_type"
+          echo "cut=$cut"
+          echo "AFF=$AFF"
           echo
 
-          echo "Tags founded for prefix:"
+          echo "Tags found for prefixes:"
 
-          git tag -l "${prefix}-*" | sort -V
+          # We still reference prefix variable from cut_for output; best-effort display
+          git tag -l "${TAGPFX_CAM}-*" | sort -V || true
           echo
 
-          echo "Last prod detected:"
-          git tag -l "${prefix}-*" --sort=-v:refname \
-          | grep -E "^${prefix}-[0-9]+\.[0-9]+\.[0-9]+$" \
-          | head -n1
+          echo "Last prod detected (cam):"
+          git tag -l "${TAGPFX_CAM}-*" --sort=-v:refname \
+          | grep -E "^${TAGPFX_CAM}-[0-9]+\.[0-9]+\.[0-9]+$" \
+          | head -n1 || true
           echo
 
-          echo "Last prod SHA:"
-
-          [ -n "$last_prod" ] && git rev-list -n1 "$last_prod"
-          echo
-
-          echo "Range using for bump: $range"
-          echo "Commits founded:"
-          git log --oneline $range
+          echo "Range using for bump: (see logs for per-key ranges)"
           echo "-----------------------------"
