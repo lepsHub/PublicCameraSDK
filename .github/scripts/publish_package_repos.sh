@@ -64,7 +64,7 @@ for k in ${AFF// / }; do
   cd /tmp/spm
   git config user.name "truvideo[bot]"
   git config user.email "truvideo[bot]@users.noreply.github.com"
-  RELEASE_ZIP_NAME="${tag}-${k}.xcframework.zip"
+  RELEASE_ZIP_NAME="${BINARY_NAME}.xcframework.zip"
   curl -L -o "/tmp/${RELEASE_ZIP_NAME}" "https://github.com/${SPM_REPO}/releases/download/${tag}/${RELEASE_ZIP_NAME}" || true
   # compute checksum
   if command -v swift >/dev/null 2>&1; then
