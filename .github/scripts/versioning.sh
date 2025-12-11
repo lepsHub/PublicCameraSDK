@@ -69,16 +69,16 @@ for key in ${AFF// / }; do
   #base_ver="$(bump_from_commits "$last_prod" "${range:-HEAD}")"
   base_ver="$(bump_from_commits "$last_prod" "$range")"
 
-# Find last build number for this base version (handles first build safely)
+# Last prerelease counter (shared between BETA and RC)
 last_build_num_raw=$(
   git tag -l "${prefix}-${base_ver}-*" |
   grep -E "${prefix}-${base_ver}-(BETA|RC)\.[0-9]+$" |
-  sed -E "s/.*(BETA|RC)\.([0-9]+)$/\2/" |
+  sed -E 's/.*\.( [0-9]+)$/\1/' |
+  tr -d ' ' |
   sort -n |
   tail -n1 || true
 )
 
-# Default to 0 if no previous prerelease tags exist
 last_build_num="${last_build_num_raw:-0}"
 
   if [ "$CUT" = "beta" ]; then
