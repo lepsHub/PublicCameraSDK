@@ -1,4 +1,4 @@
-name: Cut Release Demo-Started
+name: Cut Release Refactor
 
 on:
   pull_request:
@@ -39,103 +39,109 @@ jobs:
     runs-on: macos-15
 
     env:
+      # Labels
       LBL_BETA: cut-beta
       LBL_RC: cut-rc
-
+      LBL_PROD: cut-prod
       LBL_CAM: CameraSDK
       LBL_CORE: CoreSDK
 
+      # Tag prefixes
       TAGPFX_CAM: 'CameraSDK'
       TAGPFX_CORE: 'CoreSDK'
 
       CHANNEL_PLIST_KEY: 'TRVReleaseChannel'
 
-      GH_TOKEN: ${{ secrets.GH_EXTERNAL_PAT }}
+      # tokens (must be provided in repo secrets)
+      GH_EXTERNAL_PAT: ${{ secrets.GH_EXTERNAL_PAT }}
+      COCOAPODS_TRUNK_TOKEN: ${{ secrets.COCOAPODS_TRUNK_TOKEN }}
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
           token: ${{ secrets.GH_EXTERNAL_PAT }}
 
-      - name: Tooling / Git identity
+      - name: Install tooling
         run: |
-          brew update >/dev/null
+          brew update >/dev/null || true
           brew install jq xcodegen >/dev/null || true
-          git config user.name  "truvideo[bot]"
-          git config user.email "truvideo[bot]@users.noreply.github.com"
 
-      - name: Resolve cut type and frameworks (manual > labels > paths)
+      - name: Resolve scope (cut + aff)
         id: scope
+        env:
+          GITHUB_EVENT_PATH: ${{ github.event_path }}
+          EV_NAME: ${{ github.event_name }}
+          EV_CUT: ${{ github.event.inputs.cut }}
+          EV_FW: ${{ github.event.inputs.frameworks }}
+          EV_DRY: ${{ github.event.inputs.dry_run }}
+          LBL_BETA: ${{ env.LBL_BETA }}
+          LBL_RC: ${{ env.LBL_RC }}
+          LBL_PROD: ${{ env.LBL_PROD }}
+          LBL_CAM: ${{ env.LBL_CAM }}
+          LBL_CORE: ${{ env.LBL_CORE }}
+        run: |
+          mkdir -p .github/scripts
+          curl -sSfL https://raw.githubusercontent.com/your-org/your-repo/main/scripts/resolve_scope.sh -o .github/scripts/resolve_scope.sh || true
+          # fallback to local script if present
+          if [ -f "./scripts/resolve_scope.sh" ]; then
+            ./scripts/resolve_scope.sh
+          else
+            bash .github/scripts/resolve_scope.sh
+          fi
         shell: bash
+
+      - name: Prepare environment for subsequent steps
+        if: ${{ steps.scope.outputs.should_run == 'true' }}
+        run: echo "Scope OK, continuing"
+
+      - name: Generate Xcode project
+        if: ${{ steps.scope.outputs.should_run == 'true' && steps.scope.outputs.aff != '' }}
         run: |
           set -eo pipefail
-
-          # Extract labels safely (one per line)
-          labels="$(jq -r '.pull_request.labels[].name // empty' "$GITHUB_EVENT_PATH" 2>/dev/null | sed '/^\s*$/d')"
-
-          # Trim safely removing double spaces, leading/trailing
-          safe_trim() {
-            printf "%s" "$1" | tr -s ' ' | sed 's/^ //; s/ $//'
-          }
-
-          # Ensure aff has valid values only
-          sanitize_aff() {
-            case "$1" in
-              cam) echo "cam" ;;
-              core) echo "core" ;;
-              "cam core"|"core cam") echo "cam core" ;;
-              *) echo "" ;;
-            esac
-          }
-
-          # ---------------------------
-          # CUT TYPE
-          # ---------------------------
-          cut=""
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ github.event.inputs.cut }}" ]; then
-            cut="${{ github.event.inputs.cut }}"
+          make genbuild
+          if [ -f "TruvideoSDK.xcodeproj/project.pbxproj" ]; then
+            proj="TruvideoSDK.xcodeproj"
           else
-            if grep -Fxq "${{ env.LBL_BETA }}" <<< "$labels"; then
-              cut="beta"
-            fi
-            if grep -Fxq "${{ env.LBL_RC }}" <<< "$labels"; then
-              cut="rc"
-            fi
-            if grep -Fxq "${{ env.LBL_PROD }}" <<< "$labels"; then
-              cut="prod"
-            fi
+            proj=$(ls -1 *.xcodeproj 2>/dev/null | head -n1 || true)
           fi
-
-          if [ -z "$cut" ]; then
-            echo "cut=" >> $GITHUB_OUTPUT
-            echo "aff=" >> $GITHUB_OUTPUT
-            echo "dry=" >> $GITHUB_OUTPUT
-            exit 0
+          if [ -z "$proj" ]; then
+            echo "No .xcodeproj found after make genbuild"; exit 1
           fi
+          echo "PROJECT=$proj" >> $GITHUB_ENV
+          echo "Using PROJECT=$proj"
 
-          # ---------------------------
-          # FRAMEWORKS (AFF)
-          # ---------------------------
-          allow=""
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ github.event.inputs.frameworks }}" ]; then
-            case "${{ github.event.inputs.frameworks }}" in
-              camera) allow="cam" ;;
-              core) allow="core" ;;
-              all) allow="cam core" ;;
-            esac
+      - name: Compute versions, build, tag & release
+        if: ${{ steps.scope.outputs.should_run == 'true' }}
+        env:
+          GH_TOKEN: ${{ secrets.GH_EXTERNAL_PAT }}
+          COCOAPODS_TRUNK_TOKEN: ${{ secrets.COCOAPODS_TRUNK_TOKEN }}
+          CHANNEL_PLIST_KEY: ${{ env.CHANNEL_PLIST_KEY }}
+          TAGPFX_CAM: ${{ env.TAGPFX_CAM }}
+          TAGPFX_CORE: ${{ env.TAGPFX_CORE }}
+          GITHUB_WORKSPACE: ${{ github.workspace }}
+          CUT: ${{ steps.scope.outputs.cut }}
+          AFF: ${{ steps.scope.outputs.aff }}
+          DRY: ${{ steps.scope.outputs.dry }}
+        run: |
+          set -eo pipefail
+          mkdir -p .github/scripts
+          curl -sSfL https://raw.githubusercontent.com/your-org/your-repo/main/scripts/versioning.sh -o .github/scripts/versioning.sh || true
+          curl -sSfL https://raw.githubusercontent.com/your-org/your-repo/main/scripts/build.sh -o .github/scripts/build.sh || true
+          curl -sSfL https://raw.githubusercontent.com/your-org/your-repo/main/scripts/releases.sh -o .github/scripts/releases.sh || true
+          curl -sSfL https://raw.githubusercontent.com/your-org/your-repo/main/scripts/publish_package_repos.sh -o .github/scripts/publish_package_repos.sh || true
+
+          # prefer local scripts if present
+          if [ -f "./scripts/versioning.sh" ]; then
+            ./scripts/versioning.sh
+            ./scripts/build.sh
+            ./scripts/releases.sh
+            ./scripts/publish_package_repos.sh
           else
-            if grep -Fxq "${{ env.LBL_CAM }}" <<< "$labels"; then
-              allow="$allow cam"
-            fi
-            if grep -Fxq "${{ env.LBL_CORE }}" <<< "$labels"; then
-              allow="$allow core"
-            fi
+            bash .github/scripts/versioning.sh
+            bash .github/scripts/build.sh
+            bash .github/scripts/releases.sh
+            bash .github/scripts/publish_package_repos.sh
           fi
-
-          allow="$(safe_trim "$allow")"
-          final="$(sanitize_aff "$allow")"
-
-          echo "cut=$cut" >> $GITHUB_OUTPUT
-          echo "aff=$final" >> $GITHUB_OUTPUT
-          echo "dry=${{ github.event.inputs.dry_run }}" >> $GITHUB_OUTPUT
+        shell: bash
