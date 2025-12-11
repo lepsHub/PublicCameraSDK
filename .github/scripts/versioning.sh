@@ -50,11 +50,11 @@ for key in ${AFF// / }; do
   if [ "$key" = "cam" ]; then
     prefix="${TAGPFX_CAM:-CameraSDK}"
     path="Libraries/Plugins/Camera/"
-    vdir="Sources/TruvideoSdkCamera/Generated"
+    vdir="Sources/CameraSDK/Generated"
   else
     prefix="${TAGPFX_CORE:-CoreSDK}"
     path="Libraries/External/Extended/App/"
-    vdir="Sources/TruvideoSdk/Generated"
+    vdir="Sources/CoreSDK/Generated"
   fi
 
   last_prod=$(
