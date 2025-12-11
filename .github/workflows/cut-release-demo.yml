@@ -62,8 +62,8 @@ jobs:
         run: |
           brew update >/dev/null
           brew install jq xcodegen >/dev/null || true
-          git config user.name  "truvideo[bot]"
-          git config user.email "truvideo[bot]@users.noreply.github.com"
+          git config user.name  "${{ vars.CONFIG_USER_NAME }}""
+          git config user.email "${{ vars.CONFIG_USER_EMAIL }}"
 
       - name: Resolve cut type and frameworks (manual > labels > paths)
         id: scope
@@ -178,8 +178,8 @@ jobs:
           fi
 
           make genbuild
-          if [ -f "TruvideoSDK.xcodeproj/project.pbxproj" ]; then
-            proj="TruvideoSDK.xcodeproj"
+          if [ -f "${{ vars.FULL_PROJECT_PATH }}" ]; then
+            proj="${{ vars.PROJECT_PATH }}""
           else
             proj=$(ls -1 *.xcodeproj 2>/dev/null | head -n1 || true)
           fi
@@ -359,13 +359,13 @@ jobs:
             case "$key" in
               "cam")
                 prefix="${TAGPFX_CAM}"
-                path="Libraries/Plugins/Camera/"
-                vdir="Sources/TruvideoSdkCamera/Generated"
+                path="${{ vars.PATH_CAMERA }}"
+                vdir="${{ vars.VDIR_CAMERA }}"
                 ;;
               "core")
                 prefix="${TAGPFX_CORE}"
-                path="Libraries/External/Extended/App/"
-                vdir="Sources/TruvideoSdk/Generated"
+                path="${{ vars.PATH_CORE }}"
+                vdir="${{ vars.VDIR_CORE }}"
                 ;;
               *)
                 echo "Error: Unknown framework key '$key'"
@@ -455,9 +455,9 @@ jobs:
             external_prefixless_tag="$full"
 
             if [ "$key" = "cam" ]; then
-              external_repo="Truvideo/truvideo-sdk-ios-camera"
+              external_repo="${{ vars.EXTERNAL_REPO_CAMERA }}"
             elif [ "$key" = "core" ]; then
-              external_repo="Truvideo/truvideo-sdk-ios-core"
+              external_repo="${{ vars.EXTERNAL_REPO_CORE }}"
             fi
 
             if [ -z "$external_repo" ]; then
@@ -468,11 +468,11 @@ jobs:
             echo "== Building XCFramework for $key =="
             # Build XCFramework (archives for device + simulator, then create XCFramework)
             if [ "$key" = "cam" ]; then
-              SCHEME="TruvideoSdkCamera"
-              XC_OUTPUT="build/TruvideoSdkCamera.xcframework"
+              SCHEME="${{ vars.SCHEME_CAMERA }}"
+              XC_OUTPUT="${{ vars.XC_OUTPUT_CAMERA }}"
             else
-              SCHEME="TruvideoSdkCore"
-              XC_OUTPUT="build/TruvideoSdkCore.xcframework"
+              SCHEME="${{ vars.SCHEME_CORE }}"
+              XC_OUTPUT="${{ vars.XC_OUTPUT_CORE }}"
             fi
 
             mkdir -p build
@@ -540,22 +540,26 @@ jobs:
             # --- Publish to Pod Repo (clone, update podspec, push tag & release with podspec + xcframework) ---
             #
             if [ "$key" = "cam" ]; then
-              POD_REPO="Truvideo/truvideo-sdk-ios-camera-pod"
-              PODSPEC_NAME="truvideo-sdk-camera.podspec"
+              POD_REPO="${{ vars.POD_REPO_CAMERA }}"
+              PODSPEC_NAME="${{ vars.PODSPEC_NAME_CAMERA }}"
             else
-              POD_REPO="Truvideo/truvideo-sdk-ios-core-pod"
-              PODSPEC_NAME="truvideo-sdk-core.podspec"
+              POD_REPO="${{ vars.POD_REPO_CORE }}"
+              PODSPEC_NAME="${{ vars.PODSPEC_NAME_CORE }}"
             fi
 
             echo "== Preparing Pod repo $POD_REPO =="
             rm -rf /tmp/podrepo || true
             git clone "https://${GH_TOKEN}@github.com/${POD_REPO}.git" /tmp/podrepo
             cd /tmp/podrepo
-            git config user.name "truvideo[bot]"
-            git config user.email "truvideo[bot]@users.noreply.github.com"
+            git config user.name "${{ vars.CONFIG_USER_NAME }}"
+            git config user.email "${{ vars.CONFIG_USER_EMAIL }}"
 
             # copy xcframework and podspec
-            rm -rf TruvideoSdk*.xcframework || true
+            if [ "$key" = "cam" ]; then
+              rm -rf "${{ vars.SCHEME_CAMERA }}"*.xcframework || true
+            else
+              rm -rf "${{ vars.SCHEME_CORE }}"*.xcframework || true
+            fi
             cp -R "$GITHUB_WORKSPACE/${XC_OUTPUT}" .
             if [ -f "../${PODSPEC_NAME}" ]; then
               cp "$GITHUB_WORKSPACE/${PODSPEC_NAME}" . || true
@@ -635,21 +639,21 @@ jobs:
             # --- Update SPM repo (Package.swift) ---
             #
             if [ "$key" = "cam" ]; then
-              SPM_REPO="Truvideo/truvideo-sdk-ios-camera"
+              SPM_REPO="${{ vars.EXTERNAL_REPO_CAMERA }}"
               PACKAGE_FILE="Package.swift"
-              BINARY_NAME="TruvideoSdkCamera"
+              BINARY_NAME="${{ vars.SCHEME_CAMERA }}"
             else
-              SPM_REPO="Truvideo/truvideo-sdk-ios-core"
+              SPM_REPO="${{ vars.EXTERNAL_REPO_CORE }}"
               PACKAGE_FILE="Package.swift"
-              BINARY_NAME="TruvideoSdkCore"
+              BINARY_NAME="${{ vars.SCHEME_CORE }}"
             fi
 
             echo "== Updating SPM repo ${SPM_REPO} =="
             rm -rf /tmp/spm || true
             git clone "https://${GH_TOKEN}@github.com/${SPM_REPO}.git" /tmp/spm
             cd /tmp/spm
-            git config user.name "truvideo[bot]"
-            git config user.email "truvideo[bot]@users.noreply.github.com"
+            git config user.name "${{ vars.CONFIG_USER_NAME }}"
+            git config user.email "${{ vars.CONFIG_USER_EMAIL }}"
 
             # prepare zip for download URL in Package.swift
             RELEASE_ZIP_NAME="${external_prefixless_tag}-${key}.xcframework.zip"
