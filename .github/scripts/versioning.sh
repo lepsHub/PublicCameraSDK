@@ -66,28 +66,41 @@ for key in ${AFF// / }; do
   since_ref=""; [ -n "$last_prod" ] && since_ref="$(git rev-list -n1 "$last_prod")"
   range="${since_ref:+${since_ref}..}HEAD"
 
-  base_ver="$(bump_from_commits "$last_prod" "${range:-HEAD}")"
+  #base_ver="$(bump_from_commits "$last_prod" "${range:-HEAD}")"
+  base_ver="$(bump_from_commits "$last_prod" "$range")"
+
+  last_build_num="$(
+    git tag -l "${prefix}-${base_ver}-*" |
+    grep -E "${prefix}-${base_ver}-(BETA|RC)\.[0-9]+$" |
+    sed -E "s/.*(BETA|RC)\.([0-9]+)$/\2/" |
+    sort -n |
+    tail -n1
+  )"
+  last_build_num="${last_build_num:-0}"
 
   if [ "$CUT" = "beta" ]; then
     channel="BETA"
     # find next global build number
-    build_num="$( (git tag -l "${prefix}-${base_ver}-BETA.*" || true) | awk -F. '{print $NF}' | sort -n | tail -n1 || true)"
-    build_num=$(( ${build_num:-0} + 1 ))
+    #build_num="$( (git tag -l "${prefix}-${base_ver}-BETA.*" || true) | awk -F. '{print $NF}' | sort -n | tail -n1 || true)"
+    #build_num=$(( ${build_num:-0} + 1 ))
+    build_num=$(( last_build_num + 1 ))
     full="${base_ver}-BETA.${build_num}"
     prerelease="true"
     title="Internal BETA release for ${prefix} ${base_ver}."
   elif [ "$CUT" = "rc" ]; then
     channel="RC"
-    build_num="$( (git tag -l "${prefix}-${base_ver}-RC.*" || true) | awk -F. '{print $NF}' | sort -n | tail -n1 || true)"
-    build_num=$(( ${build_num:-0} + 1 ))
+    #build_num="$( (git tag -l "${prefix}-${base_ver}-RC.*" || true) | awk -F. '{print $NF}' | sort -n | tail -n1 || true)"
+    #build_num=$(( ${build_num:-0} + 1 ))
+    build_num=$(( last_build_num + 1 ))
     full="${base_ver}-RC.${build_num}"
     prerelease="true"
     title="Release Candidate for ${prefix} ${base_ver}."
   else
     channel="PROD"
     full="${base_ver}"
-    bn="$( (git tag -l "${prefix}-${base_ver}" || true) | wc -l )"
-    [ "$bn" -gt 0 ] && build_num="$bn" || build_num="1"
+    #bn="$( (git tag -l "${prefix}-${base_ver}" || true) | wc -l )"
+    #[ "$bn" -gt 0 ] && build_num="$bn" || build_num="1"
+    build_num="1"
     prerelease="false"
     title="Production release for ${prefix} ${base_ver}."
   fi

@@ -97,8 +97,6 @@ SWIFT
   git add "${PACKAGE_FILE}"
   if ! git diff --cached --quiet; then git commit -m "SPM: Update Package.swift for ${tag}"; fi
   git push "https://${GH_TOKEN}@github.com/${SPM_REPO}.git" "refs/heads/${tag}" || true
-  git tag "${tag}" || true
-  git push "https://${GH_TOKEN}@github.com/${SPM_REPO}.git" "refs/tags/${tag}" || true
 done
 
 echo "Package repos updated"
