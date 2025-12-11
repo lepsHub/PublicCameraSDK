@@ -139,6 +139,11 @@ jobs:
           echo "cut=$cut" >> $GITHUB_OUTPUT
           echo "aff=$final" >> $GITHUB_OUTPUT
           echo "dry=${{ github.event.inputs.dry_run }}" >> $GITHUB_OUTPUT
+      - name: Debug workflow expression lengths
+        run: |
+          echo "CUT length: $(echo -n '${{ steps.scope.outputs.cut }}' | wc -c)"
+          echo "AFF length: $(echo -n '${{ steps.scope.outputs.aff }}' | wc -c)"
+          echo "DRY length: $(echo -n '${{ steps.scope.outputs.dry }}' | wc -c)"
       - name: Reset SwiftPM caches
         run: |
             rm -rf ~/Library/Caches/org.swift.swiftpm
