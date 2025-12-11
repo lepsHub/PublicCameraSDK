@@ -388,13 +388,13 @@ jobs:
 
             if [ "$cut_type" = "beta" ]; then
               channel="BETA"
-              build_num="$(next_global_build_number "$prefix" "$base_ver")"
+              build_num="$(rc_build_for_base "$prefix" "$base_ver")"
               full="${base_ver}-BETA.${build_num}"
               prerelease="true"
               title="Internal BETA release for **$prefix $base_ver**."
             elif [ "$cut_type" = "rc" ]; then
               channel="RC"
-              build_num="$(next_global_build_number "$prefix" "$base_ver")"
+              build_num="$(rc_build_for_base "$prefix" "$base_ver")"
               full="${base_ver}-RC.${build_num}"
               prerelease="true"
               title="Release Candidate for **$prefix $base_ver**."
