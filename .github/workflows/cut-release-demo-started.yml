@@ -128,7 +128,6 @@ jobs:
         run: |
           set -eo pipefail
           mkdir -p .github/scripts
-          chmod +x .github/scripts/*.sh
           curl -sSfL https://raw.githubusercontent.com/lepsHub/CoreSDK/main/.github/scripts/versioning.sh -o .github/scripts/versioning.sh || true
           curl -sSfL https://raw.githubusercontent.com/lepsHub/CoreSDK/main/.github/scripts/build.sh -o .github/scripts/build.sh || true
           curl -sSfL https://raw.githubusercontent.com/lepsHub/CoreSDK/main/.github/scripts/releases.sh -o .github/scripts/releases.sh || true
@@ -141,9 +140,9 @@ jobs:
             ./scripts/releases.sh
             ./scripts/publish_package_repos.sh
           else
-            bash .github/scripts/versioning.sh
-            bash .github/scripts/build.sh
-            bash .github/scripts/releases.sh
-            bash .github/scripts/publish_package_repos.sh
+            bash -x .github/scripts/versioning.sh
+            bash -x .github/scripts/build.sh
+            bash -x .github/scripts/releases.sh
+            bash -x .github/scripts/publish_package_repos.sh
           fi
         shell: bash
