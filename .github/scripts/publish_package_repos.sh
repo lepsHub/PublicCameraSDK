@@ -27,18 +27,20 @@ for k in ${AFF// / }; do
     # TruvideoSdkCore
     POD_REPO="lepsHub/CoreSDK-pod"
     PODSPEC_NAME="core.podspec"
-    SPM_REPO="lepsHub/PublicCameraSDK"
+    SPM_REPO="lepsHub/PublicCoreSDK"
     PACKAGE_FILE="Package.swift"
     BINARY_NAME="CoreSDK"
   fi
 
   # Prepare podrepo workspace
+  # config user.name "truvideo[bot]"
+  # config user.email "truvideo[bot]@users.noreply.github.com"
   rm -rf /tmp/podrepo || true
   git clone "https://${GH_TOKEN}@github.com/${POD_REPO}.git" /tmp/podrepo
   cd /tmp/podrepo
   git config user.name "truvideo[bot]"
   git config user.email "truvideo[bot]@users.noreply.github.com"
-  rm -rf TruvideoSdk*.xcframework || true
+  rm -rf ${BINARY_NAME}*.xcframework || true
   cp -R "${GITHUB_WORKSPACE}/${xcoutput}" .
   if [ -f "${GITHUB_WORKSPACE}/${PODSPEC_NAME}" ]; then cp "${GITHUB_WORKSPACE}/${PODSPEC_NAME}" . || true; fi
   sed -i '' "s/spec.version *= *'.*'/spec.version = '${tag}'/" "${PODSPEC_NAME}" || true
@@ -54,6 +56,8 @@ for k in ${AFF// / }; do
     pod trunk push "${PODSPEC_NAME}" --allow-warnings || echo "pod trunk push failed (non-fatal)"
   fi
 
+  # config user.name "truvideo[bot]"
+  # config user.email "truvideo[bot]@users.noreply.github.com"
   # SPM repo update
   rm -rf /tmp/spm || true
   git clone "https://${GH_TOKEN}@github.com/${SPM_REPO}.git" /tmp/spm
@@ -61,7 +65,7 @@ for k in ${AFF// / }; do
   git config user.name "truvideo[bot]"
   git config user.email "truvideo[bot]@users.noreply.github.com"
   RELEASE_ZIP_NAME="${tag}-${k}.xcframework.zip"
-  curl -L -o "/tmp/${RELEASE_ZIP_NAME}" "https://github.com/${external_repo}/releases/download/${tag}/${RELEASE_ZIP_NAME}" || true
+  curl -L -o "/tmp/${RELEASE_ZIP_NAME}" "https://github.com/${SPM_REPO}/releases/download/${tag}/${RELEASE_ZIP_NAME}" || true
   # compute checksum
   if command -v swift >/dev/null 2>&1; then
     CHECKSUM=$(swift package compute-checksum "/tmp/${RELEASE_ZIP_NAME}" 2>/dev/null)
@@ -81,7 +85,7 @@ let package = Package(
   targets: [
     .binaryTarget(
       name: "${BINARY_NAME}",
-      url: "https://github.com/${external_repo}/releases/download/${tag}/${RELEASE_ZIP_NAME}",
+      url: "https://github.com/${SPM_REPO}/releases/download/${tag}/${RELEASE_ZIP_NAME}",
       checksum: "${CHECKSUM}"
     ),
     .target(name: "${BINARY_NAME}Targets", dependencies: ["${BINARY_NAME}"], path: "Sources")

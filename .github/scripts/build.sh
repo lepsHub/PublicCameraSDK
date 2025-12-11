@@ -6,9 +6,11 @@ set -euo pipefail
 build_xcframework() {
   local key="$1"
   if [ "$key" = "cam" ]; then
+    #TruvideoSdkCamera
     SCHEME="CameraSDK"
     XC_OUTPUT="build/CameraSDK.xcframework"
   else
+    #TruvideoSdkCore
     SCHEME="CoreSDK"
     XC_OUTPUT="build/CoreSDK.xcframework"
   fi
