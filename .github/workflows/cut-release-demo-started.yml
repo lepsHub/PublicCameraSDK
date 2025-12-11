@@ -101,8 +101,9 @@ jobs:
         run: |
           set -eo pipefail
           make genbuild
-          if [ -f "TruvideoSDK.xcodeproj/project.pbxproj" ]; then
-            proj="TruvideoSDK.xcodeproj"
+          # TruvideoSDK
+          if [ -f "CoreSDK.xcodeproj/project.pbxproj" ]; then
+            proj="CoreSDK.xcodeproj"
           else
             proj=$(ls -1 *.xcodeproj 2>/dev/null | head -n1 || true)
           fi
