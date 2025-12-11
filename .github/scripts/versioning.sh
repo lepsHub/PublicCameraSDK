@@ -48,11 +48,11 @@ gen_changelog_md () {
 # Process each framework in AFF
 for key in ${AFF// / }; do
   if [ "$key" = "cam" ]; then
-    prefix="${TAGPFX_CAM:-CameraSDK}"
+    prefix="${TAGPFX_CAM}"
     path="Libraries/Plugins/Camera/"
     vdir="Sources/CameraSDK/Generated"
   else
-    prefix="${TAGPFX_CORE:-CoreSDK}"
+    prefix="${TAGPFX_CORE}"
     path="Libraries/External/Extended/App/"
     vdir="Sources/CoreSDK/Generated"
   fi
