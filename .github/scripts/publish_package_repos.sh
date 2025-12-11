@@ -11,17 +11,25 @@ for k in ${AFF// / }; do
   tag="$(cat .release_${k}_full)"
   xcoutput="$(cat .build_${k}_xcoutput)"
   if [ "$k" = "cam" ]; then
-    POD_REPO="Truvideo/truvideo-sdk-ios-camera-pod"
-    PODSPEC_NAME="truvideo-sdk-camera.podspec"
-    SPM_REPO="Truvideo/truvideo-sdk-ios-camera"
+    # Truvideo/truvideo-sdk-ios-camera-pod
+    # truvideo-sdk-camera.podspec
+    # Truvideo/truvideo-sdk-ios-camera
+    # TruvideoSdkCamera
+    POD_REPO="lepsHub/CameraSDK-pod"
+    PODSPEC_NAME="camera.podspec"
+    SPM_REPO="lepsHub/PublicCameraSDK"
     PACKAGE_FILE="Package.swift"
-    BINARY_NAME="TruvideoSdkCamera"
+    BINARY_NAME="CameraSDK"
   else
-    POD_REPO="Truvideo/truvideo-sdk-ios-core-pod"
-    PODSPEC_NAME="truvideo-sdk-core.podspec"
-    SPM_REPO="Truvideo/truvideo-sdk-ios-core"
+    # Truvideo/truvideo-sdk-ios-core-pod
+    # truvideo-sdk-core.podspec
+    # Truvideo/truvideo-sdk-ios-core
+    # TruvideoSdkCore
+    POD_REPO="lepsHub/CoreSDK-pod"
+    PODSPEC_NAME="core.podspec"
+    SPM_REPO="lepsHub/PublicCameraSDK"
     PACKAGE_FILE="Package.swift"
-    BINARY_NAME="TruvideoSdkCore"
+    BINARY_NAME="CoreSDK"
   fi
 
   # Prepare podrepo workspace

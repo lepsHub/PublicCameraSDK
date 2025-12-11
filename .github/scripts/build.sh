@@ -6,11 +6,11 @@ set -euo pipefail
 build_xcframework() {
   local key="$1"
   if [ "$key" = "cam" ]; then
-    SCHEME="TruvideoSdkCamera"
-    XC_OUTPUT="build/TruvideoSdkCamera.xcframework"
+    SCHEME="CameraSDK"
+    XC_OUTPUT="build/CameraSDK.xcframework"
   else
-    SCHEME="TruvideoSdkCore"
-    XC_OUTPUT="build/TruvideoSdkCore.xcframework"
+    SCHEME="CoreSDK"
+    XC_OUTPUT="build/CoreSDK.xcframework"
   fi
 
   mkdir -p build

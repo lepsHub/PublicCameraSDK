@@ -26,9 +26,11 @@ for k in ${AFF// / }; do
   tag="${full}"
 
   if [ "$k" = "cam" ]; then
-    external_repo="Truvideo/truvideo-sdk-ios-camera"
+    # Truvideo/truvideo-sdk-ios-camera
+    external_repo="lepsHub/PublicCameraSDK"
   else
-    external_repo="Truvideo/truvideo-sdk-ios-core"
+    # Truvideo/truvideo-sdk-ios-core
+    external_repo="lepsHub/PublicCoreSDK"
   fi
 
   ZIP_NAME="${tag}-${k}.xcframework.zip"
