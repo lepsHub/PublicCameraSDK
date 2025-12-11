@@ -161,11 +161,14 @@ jobs:
       - name: Compute versions, update Info.plist, generate Version.swift, tag & release
         if: ${{ steps.scope.outputs.cut != '' && steps.scope.outputs.aff != '' }}
         shell: bash
+        env:
+          CUT: ${{ steps.scope.outputs.cut }}
+          DRY: ${{ steps.scope.outputs.dry }}
         run: |
           set -eo pipefail
 
-          cut="${{ steps.scope.outputs.cut }}"
-          dry="${{ steps.scope.outputs.dry }}"
+          cut="$CUT"
+          dry="$DRY"
 
           find_plists () { git ls-files "$1" | grep -E '/Info\.plist$' || true; }
           read_short_ver () { /usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$1" 2>/dev/null || true; }
