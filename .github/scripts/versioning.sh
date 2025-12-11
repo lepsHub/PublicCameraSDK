@@ -69,14 +69,17 @@ for key in ${AFF// / }; do
   #base_ver="$(bump_from_commits "$last_prod" "${range:-HEAD}")"
   base_ver="$(bump_from_commits "$last_prod" "$range")"
 
-  last_build_num="$(
-    git tag -l "${prefix}-${base_ver}-*" |
-    grep -E "${prefix}-${base_ver}-(BETA|RC)\.[0-9]+$" |
-    sed -E "s/.*(BETA|RC)\.([0-9]+)$/\2/" |
-    sort -n |
-    tail -n1
-  )"
-  last_build_num="${last_build_num:-0}"
+# Find last build number for this base version (handles first build safely)
+last_build_num_raw=$(
+  git tag -l "${prefix}-${base_ver}-*" |
+  grep -E "${prefix}-${base_ver}-(BETA|RC)\.[0-9]+$" |
+  sed -E "s/.*(BETA|RC)\.([0-9]+)$/\2/" |
+  sort -n |
+  tail -n1 || true
+)
+
+# Default to 0 if no previous prerelease tags exist
+last_build_num="${last_build_num_raw:-0}"
 
   if [ "$CUT" = "beta" ]; then
     channel="BETA"
