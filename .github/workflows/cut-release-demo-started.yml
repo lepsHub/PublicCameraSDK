@@ -84,7 +84,7 @@ jobs:
         run: |
           mkdir -p .github/scripts
           # Truvideo/truvideo-ios-sdk
-          curl -sSfL https://raw.githubusercontent.com/lepsHub/CoreSDK/.github/scripts/resolve_scope.sh -o .github/scripts/resolve_scope.sh || true
+          curl -sSfL https://raw.githubusercontent.com/lepsHub/CoreSDK/main/.github/scripts/resolve_scope.sh -o .github/scripts/resolve_scope.sh || true
           # fallback to local script if present
           if [ -f "./scripts/resolve_scope.sh" ]; then
             ./scripts/resolve_scope.sh
@@ -129,10 +129,10 @@ jobs:
         run: |
           set -eo pipefail
           mkdir -p .github/scripts
-          curl -sSfL https://raw.githubusercontent.com/lepsHub/CoreSDK/.github/scripts/versioning.sh -o .github/scripts/versioning.sh || true
-          curl -sSfL https://raw.githubusercontent.com/lepsHub/CoreSDK/.github/scripts/build.sh -o .github/scripts/build.sh || true
-          curl -sSfL https://raw.githubusercontent.com/lepsHub/CoreSDK/.github/scripts/releases.sh -o .github/scripts/releases.sh || true
-          curl -sSfL https://raw.githubusercontent.com/lepsHub/CoreSDK/.github/scripts/publish_package_repos.sh -o .github/scripts/publish_package_repos.sh || true
+          curl -sSfL https://raw.githubusercontent.com/lepsHub/CoreSDK/main/.github/scripts/versioning.sh -o .github/scripts/versioning.sh || true
+          curl -sSfL https://raw.githubusercontent.com/lepsHub/CoreSDK/main/.github/scripts/build.sh -o .github/scripts/build.sh || true
+          curl -sSfL https://raw.githubusercontent.com/lepsHub/CoreSDK/main/.github/scripts/releases.sh -o .github/scripts/releases.sh || true
+          curl -sSfL https://raw.githubusercontent.com/lepsHub/CoreSDK/main/.github/scripts/publish_package_repos.sh -o .github/scripts/publish_package_repos.sh || true
 
           # prefer local scripts if present
           if [ -f "./scripts/versioning.sh" ]; then
