@@ -727,15 +727,23 @@ jobs:
             let package = Package(
               name: \"${BINARY_NAME}\",
               products: [
-                .library(name: \"${BINARY_NAME}\", targets: [\"${BINARY_NAME}Targets\"])
+                .library(
+                  name: \"${BINARY_NAME}\",
+                  targets: [\"${BINARY_NAME}Targets\"])
               ],
+              dependencies: [],
               targets: [
                 .binaryTarget(
                   name: \"${BINARY_NAME}\",
                   url: \"https://github.com/${external_repo}/releases/download/${external_prefixless_tag}/${ZIP_NAME}\",
                   checksum: \"${CHECKSUM}\"
                 ),
-                .target(name: \"${BINARY_NAME}Targets\", dependencies: [\"${BINARY_NAME}\"], path: \"Sources\")
+                .target(
+                  name: \"${BINARY_NAME}Targets\",
+                  dependencies: [
+                    .target(name: \"${BINARY_NAME}\")
+                  ],
+                  path: \"Sources\")
               ]
             )
             "
