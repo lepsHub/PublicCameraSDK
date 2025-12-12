@@ -564,10 +564,12 @@ jobs:
             if [ "$key" = "cam" ]; then
               POD_REPO="lepsHub/CameraSDK-pod"
               PODSPEC_NAME="camera.podspec"
+              POD_WORKSPACE="CameraSDK-pod"
               POD_XC_OUTPUT="CameraSDK.xcframework"
             else
               POD_REPO="lepsHub/CoreSDK-pod"
               PODSPEC_NAME="core.podspec"
+              POD_WORKSPACE="CoreSDK-pod"
               POD_XC_OUTPUT="CoreSDK.xcframework"
             fi
 
@@ -585,9 +587,9 @@ jobs:
               rm -rf CoreSDK.xcframework || true
             fi
 
-            cp -R "$GITHUB_WORKSPACE/${POD_XC_OUTPUT}" .
+            cp -R "${POD_WORKSPACE}/${POD_XC_OUTPUT}" .
             if [ -f "../${PODSPEC_NAME}" ]; then
-              cp "$GITHUB_WORKSPACE/${PODSPEC_NAME}" . || true
+              cp "${POD_WORKSPACE}/${PODSPEC_NAME}" . || true
             fi
 
             # update podspec version line (simple sed)
