@@ -10,7 +10,7 @@
     targets: [
       .binaryTarget(
         name: "CameraSDK",
-        url: "https://github.com/lepsHub/PublicCameraSDK/releases/download/78.2.3/CameraSDK.xcframework.zip",
+        url: "https://github.com/lepsHub/PublicCameraSDK/releases/download/78.2.4/CameraSDK.xcframework.zip",
         checksum: ""
       ),
       .target(name: "CameraSDKTargets", dependencies: ["CameraSDK"], path: "Sources")
