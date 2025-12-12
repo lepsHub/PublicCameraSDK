@@ -564,9 +564,11 @@ jobs:
             if [ "$key" = "cam" ]; then
               POD_REPO="lepsHub/CameraSDK-pod"
               PODSPEC_NAME="camera.podspec"
+              POD_XC_OUTPUT="CameraSDK.xcframework"
             else
               POD_REPO="lepsHub/CoreSDK-pod"
               PODSPEC_NAME="core.podspec"
+              POD_XC_OUTPUT="CoreSDK.xcframework"
             fi
 
             echo "== Preparing Pod repo $POD_REPO =="
@@ -578,11 +580,12 @@ jobs:
 
             # copy xcframework and podspec
             if [ "$key" = "cam" ]; then
-              rm -rf CameraSDK*.xcframework || true
+              rm -rf CameraSDK.xcframework || true
             else
-              rm -rf CoreSDK*.xcframework || true
+              rm -rf CoreSDK.xcframework || true
             fi
-            cp -R "$GITHUB_WORKSPACE/${XC_OUTPUT}" .
+
+            cp -R "$GITHUB_WORKSPACE/${POD_XC_OUTPUT}" .
             if [ -f "../${PODSPEC_NAME}" ]; then
               cp "$GITHUB_WORKSPACE/${PODSPEC_NAME}" . || true
             fi
@@ -732,9 +735,6 @@ jobs:
               git commit -m "SPM: Update Package.swift for $external_prefixless_tag"
             fi
             git push "https://${GH_TOKEN}@github.com/${SPM_REPO}.git" "refs/heads/${external_prefixless_tag}" || true
-            git tag "$external_prefixless_tag" || true
-            git push "https://${GH_TOKEN}@github.com/${SPM_REPO}.git" "refs/tags/${external_prefixless_tag}" || true
-            gh api -X POST "repos/${SPM_REPO}/releases" -f tag_name="$external_prefixless_tag" -f name="$external_prefixless_tag" -f body="$body" -F prerelease=$prerelease >/dev/null || true
             echo "SPM repo updated: ${SPM_REPO}"
           }
 
