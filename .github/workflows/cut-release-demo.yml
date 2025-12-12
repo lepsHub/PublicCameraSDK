@@ -83,7 +83,10 @@ jobs:
 
           # Trim safely removing double spaces, leading/trailing
           safe_trim() {
-            printf "%s" "$1" | tr -s ' ' | sed 's/^ //; s/ $//'
+            printf "%s" "$1" \
+              | tr '\t' ' ' \
+              | tr -s ' ' \
+              | sed 's/^ *//; s/ *$//'
           }
 
           # Ensure aff has valid values only
