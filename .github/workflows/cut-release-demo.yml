@@ -373,7 +373,7 @@ jobs:
               | grep -E "^${prefix}-[0-9]+\.[0-9]+\.[0-9]+$" \
               | head -n1
             )
-            echo "VARS last_prod = ${last_prod}"
+            echo "VARS last_prod = "$last_prod""
 
             since_ref=""; [ -n "$last_prod" ] && since_ref="$(git rev-list -n1 "$last_prod")"
             range="${since_ref:+${since_ref}..}HEAD"
@@ -431,7 +431,7 @@ jobs:
             body="${body//%CHANGELOG%/$chg}"
 
             tag="${prefix}-${full}"
-            echo "VARS tag = ${tag}"
+            echo "VARS tag = "$tag""
 
             if [ "$dry" = "true" ]; then
               echo "[DRY RUN] Would tag: $tag"
@@ -465,7 +465,7 @@ jobs:
 
             external_repo=""
             external_prefixless_tag="$full"
-            echo "VARS external_prefixless_tag = ${external_prefixless_tag}"
+            echo "VARS external_prefixless_tag = $"external_prefixless_tag""
 
             if [ "$key" = "cam" ]; then
               external_repo="lepsHub/PublicCameraSDK"
