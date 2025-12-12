@@ -5,15 +5,23 @@
   let package = Package(
     name: "CameraSDK",
     products: [
-      .library(name: "CameraSDK", targets: ["CameraSDKTargets"])
+      .library(
+        name: "CameraSDK",
+        targets: ["CameraSDKTargets"])
     ],
+    dependencies: [],
     targets: [
       .binaryTarget(
         name: "CameraSDK",
-        url: "https://github.com/lepsHub/PublicCameraSDK/releases/download/78.2.5/CameraSDK.xcframework.zip",
-        checksum: "ee3031627b82803255bde9ff8a4e781e463c8be80ac8a5187333f88a0bfa7b84"
+        url: "https://github.com/lepsHub/PublicCameraSDK/releases/download/78.2.6/CameraSDK.xcframework.zip",
+        checksum: "3d29997239e658377880681ecb1b1399d87c102e324bc10baad46833267fc700"
       ),
-      .target(name: "CameraSDKTargets", dependencies: ["CameraSDK"], path: "Sources")
+      .target(
+        name: "CameraSDKTargets",
+        dependencies: [
+          .target(name: "CameraSDK")
+        ],
+        path: "Sources")
     ]
   )
   
