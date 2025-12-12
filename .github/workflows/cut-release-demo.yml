@@ -451,6 +451,23 @@ jobs:
               git commit -m "chore(release): bump ${prefix} to ${full} (${channel})"
             fi
 
+            # --- INTERNAL TAG CREATION (MONOREPO) ---
+
+            if [ "$key" = "cam" ]; then
+              internal_tag="${TAGPFX_CAM}-${full}"
+            elif [ "$key" = "core" ]; then
+              internal_tag="${TAGPFX_CORE}-${full}"
+            fi
+            
+            if git tag -l | grep -q "^${internal_tag}$"; then
+              echo "⚠️ Internal tag '${internal_tag}' already exists. Skipping."
+            else
+              echo "➡️ Creating internal tag '${internal_tag}' in monorepo..."
+              git tag "${internal_tag}"
+              git push origin "refs/tags/${internal_tag}"
+              echo "✅ Internal monorepo tag '${internal_tag}' pushed."
+            fi
+
             external_repo=""
             external_prefixless_tag="$full"
 
