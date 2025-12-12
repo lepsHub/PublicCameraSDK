@@ -587,9 +587,9 @@ jobs:
               rm -rf CoreSDK.xcframework || true
             fi
 
-            cp -R "${POD_WORKSPACE}/${POD_XC_OUTPUT}" .
+            cp -R "$GITHUB_WORKSPACE/build/${POD_XC_OUTPUT}" .
             if [ -f "../${PODSPEC_NAME}" ]; then
-              cp "${POD_WORKSPACE}/${PODSPEC_NAME}" . || true
+              cp "$GITHUB_WORKSPACE/${POD_WORKSPACE}/${PODSPEC_NAME}" . || true
             fi
 
             # update podspec version line (simple sed)
