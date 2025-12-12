@@ -682,21 +682,28 @@ jobs:
             fi
             # ensure release zip exists in external repo (it should have been uploaded above)
             # compute checksum (use swift tool if available)
-            if command -v swift >/dev/null 2>&1; then
-              curl -L -o "/tmp/${RELEASE_ZIP_NAME}" "https://github.com/${external_repo}/releases/download/${external_prefixless_tag}/${ZIP_NAME}"
-                if [ $? -ne 0 ] || [ ! -s "/tmp/${RELEASE_ZIP_NAME}" ]; then
-                  echo "Error: Failed to download /tmp/${RELEASE_ZIP_NAME} from GitHub releases." >&2
-                  exit 1
-                fi
-              CHECKSUM=$(swift package compute-checksum "/tmp/${RELEASE_ZIP_NAME}" 2>/dev/null)
-            else
-              # fallback: sha256
-              curl -L -o "/tmp/${RELEASE_ZIP_NAME}" "https://github.com/${external_repo}/releases/download/${external_prefixless_tag}/${ZIP_NAME}"
-                if [ $? -ne 0 ] || [ ! -s "/tmp/${RELEASE_ZIP_NAME}" ]; then
-                  echo "Error: Failed to download /tmp/${RELEASE_ZIP_NAME} from GitHub releases." >&2
-                  exit 1
-                fi
-              CHECKSUM=$(shasum -a 256 "/tmp/${RELEASE_ZIP_NAME}" | awk '{print $1}')
+            
+            DOWNLOAD_URL="https://github.com/${external_repo}/releases/download/${external_prefixless_tag}/${ZIP_NAME}"
+
+            echo "Trying to download ${ZIP_NAME} from release…"
+            MAX_RETRIES=10
+            ATTEMPT=1
+            SLEEP_TIME=6
+
+            while [ $ATTEMPT -le $MAX_RETRIES ]; do
+              curl -L -o "/tmp/${RELEASE_ZIP_NAME}" "$DOWNLOAD_URL"
+              if [ -s "/tmp/${RELEASE_ZIP_NAME}" ]; then
+                echo "Download succeeded."
+                break
+              fi
+              echo "Attempt $ATTEMPT failed — file not available yet. Retrying in ${SLEEP_TIME}s…"
+              sleep $SLEEP_TIME
+              ATTEMPT=$((ATTEMPT + 1))
+            done
+
+            if [ $ATTEMPT -gt $MAX_RETRIES ]; then
+              echo "ERROR: Could not download ZIP after ${MAX_RETRIES} retries."
+              exit 1
             fi
 
             PACKAGE_CONTENT="// swift-tools-version:5.8
