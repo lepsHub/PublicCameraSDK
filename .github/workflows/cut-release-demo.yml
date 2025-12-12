@@ -203,6 +203,8 @@ jobs:
           COCOAPODS_TRUNK_TOKEN: ${{ secrets.COCOAPODS_TRUNK_TOKEN }}
         run: |
           set -eo pipefail
+          trap 'ret=$?; echo "ERROR: command failed with exit $ret: ${BASH_COMMAND} at line ${LINENO}"; exit $ret' ERR
+
 
           # load scope vars produced by the scope step
           SCOPE_FILE="$GITHUB_WORKSPACE/.cut_release_scope"
@@ -682,7 +684,7 @@ jobs:
             fi
             # ensure release zip exists in external repo (it should have been uploaded above)
             # compute checksum (use swift tool if available)
-            
+
             DOWNLOAD_URL="https://github.com/${external_repo}/releases/download/${external_prefixless_tag}/${ZIP_NAME}"
 
             echo "Trying to download ${ZIP_NAME} from release…"
