@@ -524,7 +524,12 @@ jobs:
 
             echo "== Creating release on external repo: $external_repo and uploading artifacts =="
             # create a release and upload xcframework zip
-            ZIP_NAME="${external_prefixless_tag}.xcframework.zip"
+            if [ "$key" = "cam" ]; then
+              ZIP_NAME="CameraSDK.xcframework.zip"
+            else
+              ZIP_NAME="CoreSDK.xcframework.zip"
+            fi
+            
             rm -f "/tmp/${ZIP_NAME}"
             (cd $(dirname "$XC_OUTPUT") && zip -r "/tmp/${ZIP_NAME}" "$(basename "$XC_OUTPUT")")
 
@@ -673,7 +678,11 @@ jobs:
             git config user.email "backup.user.leps@outlook.com"
 
             # prepare zip for download URL in Package.swift
-            RELEASE_ZIP_NAME="${external_prefixless_tag}.xcframework.zip"
+            if [ "$key" = "cam" ]; then
+              RELEASE_ZIP_NAME="CameraSDK.xcframework.zip"
+            else
+              RELEASE_ZIP_NAME="CoreSDK.xcframework.zip"
+            fi
             # ensure release zip exists in external repo (it should have been uploaded above)
             # compute checksum (use swift tool if available)
             if command -v swift >/dev/null 2>&1; then
