@@ -744,29 +744,31 @@ jobs:
           # iterate over AFF (space separated)
           IFS=' ' read -r -a AFF_ARR <<< "${AFF}"
           for s in "${AFF_ARR[@]}"; do
-            # iterate over cut types (comma or space separated)
             IFS=', ' read -r -a CUT_ARR <<< "${cut}"
             for cut_type in "${CUT_ARR[@]}"; do
-              cut_for "$s" "$cut_type"
+
+              # --- run cut_for in a controlled way, capture stdout/stderr to a file ---
+              LOGFILE="/tmp/cut_for_${s}_${cut_type}.log"
+              rm -f "$LOGFILE" || true
+              echo ">>> START cut_for $s $cut_type at $(date -u +"%Y-%m-%dT%H:%M:%SZ")" >> "$LOGFILE"
+
+              # temporarily disable errexit so we can inspect the exit code
+              set +e
+              # run cut_for and pipe both stdout+stderr to log (preserve exit code)
+              cut_for "$s" "$cut_type" >> "$LOGFILE" 2>&1
+              RC=$?
+              set -e
+
+              echo ">>> END cut_for $s $cut_type with rc=$RC at $(date -u +"%Y-%m-%dT%H:%M:%SZ")" >> "$LOGFILE"
+
+              if [ $RC -ne 0 ]; then
+                echo "⚠️ cut_for failed for framework='$s' cut='$cut_type' (rc=$RC). See tail of $LOGFILE"
+                echo "---------- tail $LOGFILE ----------"
+                tail -n 200 "$LOGFILE" || true
+                echo "-----------------------------------"
+                # Continue to next framework/cut — do not abort whole job
+                continue
+              fi
+
             done
           done
-
-          echo "---- ➡️➡️➡️➡️➡️ DEBUG VERSION CALC ----"
-          echo "cut=$cut"
-          echo "AFF=$AFF"
-          echo
-
-          echo "Tags found for prefixes:"
-
-          # We still reference prefix variable from cut_for output; best-effort display
-          git tag -l "${TAGPFX_CAM}-*" | sort -V || true
-          echo
-
-          echo "Last prod detected (cam):"
-          git tag -l "${TAGPFX_CAM}-*" --sort=-v:refname \
-          | grep -E "^${TAGPFX_CAM}-[0-9]+\.[0-9]+\.[0-9]+$" \
-          | head -n1 || true
-          echo
-
-          echo "Range using for bump: (see logs for per-key ranges)"
-          echo "-----------------------------"
