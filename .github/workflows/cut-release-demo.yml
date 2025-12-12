@@ -687,7 +687,7 @@ jobs:
             fi
             # ensure release zip exists in external repo (it should have been uploaded above)
             # compute checksum (use swift tool if available)
-
+            
             DOWNLOAD_URL="https://github.com/${external_repo}/releases/download/${external_prefixless_tag}/${ZIP_NAME}"
 
             echo "Trying to download ${ZIP_NAME} from release…"
@@ -710,6 +710,15 @@ jobs:
               echo "ERROR: Could not download ZIP after ${MAX_RETRIES} retries."
               exit 1
             fi
+
+            echo "Computing checksum..."
+            CHECKSUM=$(swift package compute-checksum "/tmp/${RELEASE_ZIP_NAME}")
+            if [ -z "$CHECKSUM" ]; then
+              echo "ERROR: checksum is empty. ZIP may be invalid."
+              exit 1
+            fi
+
+            echo "Checksum: $CHECKSUM"
 
             PACKAGE_CONTENT="// swift-tools-version:5.8
 
