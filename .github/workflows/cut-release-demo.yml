@@ -194,6 +194,7 @@ jobs:
         env:
           # safe small expressions only
           GH_TOKEN: ${{ secrets.GH_EXTERNAL_PAT }}
+          COCOAPODS_TRUNK_TOKEN: ${{ secrets.COCOAPODS_TRUNK_TOKEN }}
         run: |
           set -eo pipefail
 
