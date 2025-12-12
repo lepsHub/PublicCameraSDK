@@ -564,12 +564,12 @@ jobs:
             #
             if [ "$key" = "cam" ]; then
               POD_REPO="lepsHub/CameraSDK-pod"
-              PODSPEC_NAME="camera.podspec"
+              PODSPEC_NAME="CameraSDK.podspec"
               POD_WORKSPACE="CameraSDK-pod"
               POD_XC_OUTPUT="CameraSDK.xcframework"
             else
               POD_REPO="lepsHub/CoreSDK-pod"
-              PODSPEC_NAME="core.podspec"
+              PODSPEC_NAME="CoreSDK.podspec"
               POD_WORKSPACE="CoreSDK-pod"
               POD_XC_OUTPUT="CoreSDK.xcframework"
             fi
