@@ -365,6 +365,9 @@ jobs:
           cut_for () {
             local key="$1" cut_type="$2" prefix path vdir channel full base_ver build_num prerelease title
 
+            local ORIGINAL_DIR
+            ORIGINAL_DIR="$(pwd)"
+
             case "$key" in
               "cam")
                 prefix="${TAGPFX_CAM}"
@@ -739,6 +742,8 @@ jobs:
             fi
             git push "https://${GH_TOKEN}@github.com/${SPM_REPO}.git" "refs/heads/${external_prefixless_tag}" || true
             echo "SPM repo updated: ${SPM_REPO}"
+            # restore working directory
+            cd "$ORIGINAL_DIR" || true
             return 0
           }
 
