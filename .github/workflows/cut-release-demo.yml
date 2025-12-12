@@ -625,21 +625,6 @@ jobs:
               fi
             fi
 
-            # Upload xcframework zip (always attempt; --clobber to replace existing asset)
-            if gh release upload "${external_prefixless_tag}" "${XC_OUTPUT}.zip" --repo "${POD_REPO}" --clobber; then
-              echo "✅ Uploaded ${XC_OUTPUT}.zip to ${POD_REPO} release ${external_prefixless_tag}."
-            else
-              echo "⚠️ WARN: failed to upload ${XC_OUTPUT}.zip to ${POD_REPO} release ${external_prefixless_tag}."
-            fi
-
-            # Upload podspec (always attempt)
-            if gh release upload "${external_prefixless_tag}" "$PODSPEC_NAME" --repo "${POD_REPO}" --clobber; then
-              echo "✅ Uploaded ${PODSPEC_NAME} to ${POD_REPO} release ${external_prefixless_tag}."
-            else
-              echo "⚠️ WARN: failed to upload ${PODSPEC_NAME} to ${POD_REPO} release ${external_prefixless_tag}."
-            fi
-            echo "Pod repo release created / updated for ${POD_REPO}"
-
             #
             # Try pod trunk push (if using public cocoapods trunk). This requires COCOAPODS_TRUNK_TOKEN be configured.
             #
