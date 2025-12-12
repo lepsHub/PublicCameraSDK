@@ -204,10 +204,10 @@ jobs:
         run: |
           set -eo pipefail
           trap 'ret=$?; echo "ERROR: command failed with exit $ret: ${BASH_COMMAND} at line ${LINENO}"; exit $ret' ERR
-
-
-          # load scope vars produced by the scope step
+         
+          echo "💿 WORKING ON: Load scope vars produced by the scope step"
           SCOPE_FILE="$GITHUB_WORKSPACE/.cut_release_scope"
+          echo "VARS SCOPE_FILE = ${SCOPE_FILE}"
           if [ ! -f "$SCOPE_FILE" ]; then
             echo "Scope file not found; exiting (nothing to cut)."
             exit 0
@@ -215,7 +215,10 @@ jobs:
           # shellcheck source=/dev/null
           source "$SCOPE_FILE"
 
-          # Only continue if both CUT and AFF are set
+          echo "Only continue if both CUT and AFF are set"
+          echo "VARS CUT = ${CUT}"
+          echo "VARS AFF = ${AFF}"
+          echo "VARS AFF = ${DRY}"
           if [ -z "${CUT:-}" ] || [ -z "${AFF:-}" ]; then
             echo "CUT or AFF empty; nothing to do."
             exit 0
@@ -224,6 +227,7 @@ jobs:
           cut="$CUT"
           dry="$DRY"
 
+          # Creating all functions tools
           find_plists () { git ls-files "$1" | grep -E '/Info\.plist$' || true; }
           read_short_ver () { /usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$1" 2>/dev/null || true; }
           write_short_ver () { /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $2" "$1" || /usr/libexec/PlistBuddy -c "Add :CFBundleShortVersionString string $2" "$1"; }
@@ -254,29 +258,12 @@ jobs:
             git log --format='%h %s' $2 >&2
           }
 
-          # (functions next_beta_n, last_beta_n, next_rc_n, etc. unchanged)
-          next_beta_n () {
-            local prefix="$1" base="$2" max=0
-            while read -r t; do [ -z "$t" ] && continue
-              n="${t##*.}"; [[ "$n" =~ ^[0-9]+$ ]] && [ "$n" -gt "$max" ] && max="$n" || true
-            done < <(git tag -l "${prefix}-${base}-BETA.*")
-            echo $((max+1))
-          }
-
           last_beta_n () {
             local prefix="$1" base="$2" max=0
             while read -r t; do [ -z "$t" ] && continue
               n="${t##*.}"; [[ "$n" =~ ^[0-9]+$ ]] && [ "$n" -gt "$max" ] && max="$n" || true
             done < <(git tag -l "${prefix}-${base}-BETA.*")
             echo "$max"
-          }
-
-          next_rc_n () {
-            local prefix="$1" base="$2" max=0
-            while read -r t; do [ -z "$t" ] && continue
-              n="${t##*.}"; [[ "$n" =~ ^[0-9]+$ ]] && [ "$n" -gt "$max" ] && max="$n" || true
-            done < <(git tag -l "${prefix}-${base}-RC.*")
-            echo $((max+1))
           }
 
           last_rc_n () {
@@ -293,14 +280,6 @@ jobs:
             bmax="$(last_beta_n "$prefix" "$base")"
             rmax="$(last_rc_n  "$prefix" "$base")"
             [ "$bmax" -ge "$rmax" ] && echo $((bmax + 1)) || echo $((rmax + 1))
-          }
-
-          latest_build_for_base () {
-            local prefix="$1" base="$2" max=0
-            while read -r t; do [ -z "$t" ] && continue
-              n="${t##*.}"; [[ "$n" =~ ^[0-9]+$ ]] && [ "$n" -gt "$max" ] && max="$n" || true
-            done < <( { git tag -l "${prefix}-${base}-BETA.*"; git tag -l "${prefix}-${base}-RC.*"; } )
-            echo "$max"
           }
 
           next_global_build_number() {
@@ -363,10 +342,12 @@ jobs:
           }
 
           cut_for () {
+            echo "ENTER cut_for function"
             local key="$1" cut_type="$2" prefix path vdir channel full base_ver build_num prerelease title
 
             local ORIGINAL_DIR
             ORIGINAL_DIR="$(pwd)"
+            echo "VARS ORIGINAL_DIR: = ${ORIGINAL_DIR}"
 
             case "$key" in
               "cam")
@@ -392,6 +373,7 @@ jobs:
               | grep -E "^${prefix}-[0-9]+\.[0-9]+\.[0-9]+$" \
               | head -n1
             )
+            echo "VARS last_prod = "$last_prod""
 
             since_ref=""; [ -n "$last_prod" ] && since_ref="$(git rev-list -n1 "$last_prod")"
             range="${since_ref:+${since_ref}..}HEAD"
@@ -449,6 +431,7 @@ jobs:
             body="${body//%CHANGELOG%/$chg}"
 
             tag="${prefix}-${full}"
+            echo "VARS tag = "$tag""
 
             if [ "$dry" = "true" ]; then
               echo "[DRY RUN] Would tag: $tag"
@@ -463,7 +446,7 @@ jobs:
               git commit -m "chore(release): bump ${prefix} to ${full} (${channel})"
             fi
 
-            # --- INTERNAL TAG CREATION (MONOREPO) ---
+            echo "💿 WORKING ON: --- INTERNAL TAG CREATION (MONOREPO) ---"
 
             if [ "$key" = "cam" ]; then
               internal_tag="${TAGPFX_CAM}-${full}"
@@ -482,6 +465,7 @@ jobs:
 
             external_repo=""
             external_prefixless_tag="$full"
+            echo "VARS external_prefixless_tag = $"external_prefixless_tag""
 
             if [ "$key" = "cam" ]; then
               external_repo="lepsHub/PublicCameraSDK"
@@ -519,19 +503,19 @@ jobs:
               exit 1
             fi
 
-              echo "== Creating external lightweight tag: ${external_prefixless_tag} on ${external_repo} =="
+            echo "💿 WORKING ON: == Creating external lightweight tag: ${external_prefixless_tag} on ${external_repo} =="
 
-              AUTH_REPO_URL="https://${GH_TOKEN}:x-oauth-basic@github.com/${external_repo}.git"
-              PUSH_REPO_URL="https://${GH_TOKEN}@github.com/${external_repo}.git"
+            AUTH_REPO_URL="https://${GH_TOKEN}:x-oauth-basic@github.com/${external_repo}.git"
+            PUSH_REPO_URL="https://${GH_TOKEN}@github.com/${external_repo}.git"
 
-              # Correct authenticated check
-              if git ls-remote --tags "$AUTH_REPO_URL" | grep -q "refs/tags/${external_prefixless_tag}"; then
-                  echo "⚠️  Tag '${external_prefixless_tag}' already exists in ${external_repo}. Skipping tag creation."
-              else
-                  echo "➡️  Tag '${external_prefixless_tag}' does not exist. Creating and pushing..."
-                  git tag "${external_prefixless_tag}"
-                  git push "$PUSH_REPO_URL" "refs/tags/${external_prefixless_tag}"
-                  echo "✅  External tag '${external_prefixless_tag}' pushed successfully."
+            # Correct authenticated check
+            if git ls-remote --tags "$AUTH_REPO_URL" | grep -q "refs/tags/${external_prefixless_tag}"; then
+              echo "⚠️  Tag '${external_prefixless_tag}' already exists in ${external_repo}. Skipping tag creation."
+            else
+              echo "➡️  Tag '${external_prefixless_tag}' does not exist. Creating and pushing..."
+                git tag "${external_prefixless_tag}"
+                git push "$PUSH_REPO_URL" "refs/tags/${external_prefixless_tag}"
+                echo "✅  External tag '${external_prefixless_tag}' pushed successfully."
               fi
 
             echo "== Creating release on external repo: $external_repo and uploading artifacts =="
@@ -569,10 +553,7 @@ jobs:
             fi
 
             echo "External release created for $external_repo"
-
-            #
-            # --- Publish to Pod Repo (clone, update podspec, push tag & release with podspec + xcframework) ---
-            #
+            echo "💿 WORKING ON: --- PUBLISH POD REPO (clone, update podspec, push tag & release with podspec + xcframework) --- "
             if [ "$key" = "cam" ]; then
               POD_REPO="lepsHub/CameraSDK-pod"
               PODSPEC_NAME="LEPSCameraSDK.podspec"
@@ -637,9 +618,7 @@ jobs:
               fi
             fi
 
-            #
-            # Try pod trunk push (if using public cocoapods trunk). This requires COCOAPODS_TRUNK_TOKEN be configured.
-            #
+            echo "Try pod trunk push (if using public cocoapods trunk). This requires COCOAPODS_TRUNK_TOKEN be configured."
             if [ -n "${COCOAPODS_TRUNK_TOKEN:-}" ]; then
               echo "Attempting pod trunk push for $PODSPEC_NAME (version $external_prefixless_tag)"
               MAX_RETRIES=3
@@ -659,9 +638,10 @@ jobs:
               echo "COCOAPODS_TRUNK_TOKEN not set; skipping pod trunk push (only updated pod repo)."
             fi
 
-            #
-            # --- Update SPM repo (Package.swift) ---
-            #
+            echo "CocoaPods release created for $POD_REPO"
+
+            echo "💿 WORKING ON: --- Update SPM repo (Package.swift) ---""
+            
             if [ "$key" = "cam" ]; then
               SPM_REPO="lepsHub/PublicCameraSDK"
               PACKAGE_FILE="Package.swift"
