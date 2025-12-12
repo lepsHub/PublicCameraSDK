@@ -519,107 +519,6 @@ jobs:
               exit 1
             fi
 
-                        #
-            # --- Update SPM repo (Package.swift) ---
-            #
-            if [ "$key" = "cam" ]; then
-              SPM_REPO="lepsHub/PublicCameraSDK"
-              PACKAGE_FILE="Package.swift"
-              BINARY_NAME="CameraSDK"
-            else
-              SPM_REPO="lepsHub/PublicCoreSDK"
-              PACKAGE_FILE="Package.swift"
-              BINARY_NAME="CoreSDK"
-            fi
-
-            echo "== Updating SPM repo ${SPM_REPO} =="
-            rm -rf /tmp/spm || true
-            git clone "https://${GH_TOKEN}@github.com/${SPM_REPO}.git" /tmp/spm
-            cd /tmp/spm
-            git config user.name "lepsHub"
-            git config user.email "backup.user.leps@outlook.com"
-
-            # prepare zip for download URL in Package.swift
-            if [ "$key" = "cam" ]; then
-              RELEASE_ZIP_NAME="CameraSDK.xcframework.zip"
-            else
-              RELEASE_ZIP_NAME="CoreSDK.xcframework.zip"
-            fi
-            # ensure release zip exists in external repo (it should have been uploaded above)
-            # compute checksum (use swift tool if available)
-            
-            DOWNLOAD_URL="https://github.com/${external_repo}/releases/download/${external_prefixless_tag}/${ZIP_NAME}"
-
-            echo "Trying to download ${ZIP_NAME} from release…"
-            MAX_RETRIES=10
-            ATTEMPT=1
-            SLEEP_TIME=6
-
-            while [ $ATTEMPT -le $MAX_RETRIES ]; do
-              curl -L -o "/tmp/${RELEASE_ZIP_NAME}" "$DOWNLOAD_URL"
-              if [ -s "/tmp/${RELEASE_ZIP_NAME}" ]; then
-                echo "Download succeeded."
-                break
-              fi
-              echo "Attempt $ATTEMPT failed — file not available yet. Retrying in ${SLEEP_TIME}s…"
-              sleep $SLEEP_TIME
-              ATTEMPT=$((ATTEMPT + 1))
-            done
-
-            if [ $ATTEMPT -gt $MAX_RETRIES ]; then
-              echo "ERROR: Could not download ZIP after ${MAX_RETRIES} retries."
-              exit 1
-            fi
-
-            echo "Computing checksum..."
-            CHECKSUM=$(swift package compute-checksum "/tmp/${RELEASE_ZIP_NAME}")
-            if [ -z "$CHECKSUM" ]; then
-              echo "ERROR: checksum is empty. ZIP may be invalid."
-              exit 1
-            fi
-
-            echo "Checksum: $CHECKSUM"
-
-            PACKAGE_CONTENT="// swift-tools-version:5.8
-
-            import PackageDescription
-                        
-            let package = Package(
-              name: \"${BINARY_NAME}\",
-              products: [
-                .library(
-                  name: \"${BINARY_NAME}\",
-                  targets: [\"${BINARY_NAME}Targets\"])
-              ],
-              dependencies: [],
-              targets: [
-                .binaryTarget(
-                  name: \"${BINARY_NAME}\",
-                  url: \"https://github.com/${external_repo}/releases/download/${external_prefixless_tag}/${ZIP_NAME}\",
-                  checksum: \"${CHECKSUM}\"
-                ),
-                .target(
-                  name: \"${BINARY_NAME}Targets\",
-                  dependencies: [
-                    .target(name: \"${BINARY_NAME}\")
-                  ],
-                  path: \"Sources\")
-              ]
-            )
-            "
-            echo "$PACKAGE_CONTENT" > "$PACKAGE_FILE"
-            if git show-ref --verify --quiet "refs/heads/$external_prefixless_tag"; then
-              git checkout "$external_prefixless_tag"
-            else
-              git checkout -b "$external_prefixless_tag"
-            fi
-            git add "$PACKAGE_FILE"
-            if ! git diff --cached --quiet; then
-              git commit -m "SPM: Update Package.swift for $external_prefixless_tag"
-            fi
-            git push "https://${GH_TOKEN}@github.com/${SPM_REPO}.git" "refs/heads/${external_prefixless_tag}" || true
-            echo "SPM repo updated: ${SPM_REPO}"
-
               echo "== Creating external lightweight tag: ${external_prefixless_tag} on ${external_repo} =="
 
               AUTH_REPO_URL="https://${GH_TOKEN}:x-oauth-basic@github.com/${external_repo}.git"
@@ -760,6 +659,106 @@ jobs:
               echo "COCOAPODS_TRUNK_TOKEN not set; skipping pod trunk push (only updated pod repo)."
             fi
 
+            #
+            # --- Update SPM repo (Package.swift) ---
+            #
+            if [ "$key" = "cam" ]; then
+              SPM_REPO="lepsHub/PublicCameraSDK"
+              PACKAGE_FILE="Package.swift"
+              BINARY_NAME="CameraSDK"
+            else
+              SPM_REPO="lepsHub/PublicCoreSDK"
+              PACKAGE_FILE="Package.swift"
+              BINARY_NAME="CoreSDK"
+            fi
+
+            echo "== Updating SPM repo ${SPM_REPO} =="
+            rm -rf /tmp/spm || true
+            git clone "https://${GH_TOKEN}@github.com/${SPM_REPO}.git" /tmp/spm
+            cd /tmp/spm
+            git config user.name "lepsHub"
+            git config user.email "backup.user.leps@outlook.com"
+
+            # prepare zip for download URL in Package.swift
+            if [ "$key" = "cam" ]; then
+              RELEASE_ZIP_NAME="CameraSDK.xcframework.zip"
+            else
+              RELEASE_ZIP_NAME="CoreSDK.xcframework.zip"
+            fi
+            # ensure release zip exists in external repo (it should have been uploaded above)
+            # compute checksum (use swift tool if available)
+            
+            DOWNLOAD_URL="https://github.com/${external_repo}/releases/download/${external_prefixless_tag}/${ZIP_NAME}"
+
+            echo "Trying to download ${ZIP_NAME} from release…"
+            MAX_RETRIES=10
+            ATTEMPT=1
+            SLEEP_TIME=6
+
+            while [ $ATTEMPT -le $MAX_RETRIES ]; do
+              curl -L -o "/tmp/${RELEASE_ZIP_NAME}" "$DOWNLOAD_URL"
+              if [ -s "/tmp/${RELEASE_ZIP_NAME}" ]; then
+                echo "Download succeeded."
+                break
+              fi
+              echo "Attempt $ATTEMPT failed — file not available yet. Retrying in ${SLEEP_TIME}s…"
+              sleep $SLEEP_TIME
+              ATTEMPT=$((ATTEMPT + 1))
+            done
+
+            if [ $ATTEMPT -gt $MAX_RETRIES ]; then
+              echo "ERROR: Could not download ZIP after ${MAX_RETRIES} retries."
+              exit 1
+            fi
+
+            echo "Computing checksum..."
+            CHECKSUM=$(swift package compute-checksum "/tmp/${RELEASE_ZIP_NAME}")
+            if [ -z "$CHECKSUM" ]; then
+              echo "ERROR: checksum is empty. ZIP may be invalid."
+              exit 1
+            fi
+
+            echo "Checksum: $CHECKSUM"
+
+            PACKAGE_CONTENT="// swift-tools-version:5.8
+
+            import PackageDescription
+                        
+            let package = Package(
+              name: \"${BINARY_NAME}\",
+              products: [
+                .library(
+                  name: \"${BINARY_NAME}\",
+                  targets: [\"${BINARY_NAME}Targets\"])
+              ],
+              dependencies: [],
+              targets: [
+                .binaryTarget(
+                  name: \"${BINARY_NAME}\",
+                  url: \"https://github.com/${external_repo}/releases/download/${external_prefixless_tag}/${ZIP_NAME}\",
+                  checksum: \"${CHECKSUM}\"
+                ),
+                .target(
+                  name: \"${BINARY_NAME}Targets\",
+                  dependencies: [
+                    .target(name: \"${BINARY_NAME}\")
+                  ],
+                  path: \"Sources\")
+              ]
+            )
+            "
+            echo "$PACKAGE_CONTENT" > "$PACKAGE_FILE"
+            if git show-ref --verify --quiet "refs/heads/$external_prefixless_tag"; then
+              git checkout "$external_prefixless_tag"
+            else
+              git checkout -b "$external_prefixless_tag"
+            fi
+            git add "$PACKAGE_FILE"
+            if ! git diff --cached --quiet; then
+              git commit -m "SPM: Update Package.swift for $external_prefixless_tag"
+            fi
+            git push "https://${GH_TOKEN}@github.com/${SPM_REPO}.git" "refs/heads/${external_prefixless_tag}" || true
+            echo "SPM repo updated: ${SPM_REPO}"
             # restore working directory
             cd "$ORIGINAL_DIR" || true
             return 0
