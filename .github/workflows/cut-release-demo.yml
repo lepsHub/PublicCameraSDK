@@ -158,7 +158,10 @@ jobs:
 
           # Also persist to a file so subsequent steps can source it without YAML interpolation
           SCOPE_FILE="$GITHUB_WORKSPACE/.cut_release_scope"
-          printf 'CUT=%s\nAFF=%s\nDRY=%s\n' "$cut" "$final" "$dry" > "$SCOPE_FILE"
+          # printf 'CUT=%s\nAFF=%s\nDRY=%s\n' "$cut" "$final" "$dry" > "$SCOPE_FILE"
+          echo "CUT=$cut" > "$SCOPE_FILE"
+          echo "AFF=\"$final\"" >> "$SCOPE_FILE"
+          echo "DRY=$dry" >> "$SCOPE_FILE"
           echo "Wrote scope to $SCOPE_FILE"
       - name: Reset SwiftPM caches
         run: |
