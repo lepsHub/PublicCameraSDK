@@ -739,6 +739,7 @@ jobs:
             fi
             git push "https://${GH_TOKEN}@github.com/${SPM_REPO}.git" "refs/heads/${external_prefixless_tag}" || true
             echo "SPM repo updated: ${SPM_REPO}"
+            return 0
           }
 
           # iterate over AFF (space separated)
@@ -746,29 +747,6 @@ jobs:
           for s in "${AFF_ARR[@]}"; do
             IFS=', ' read -r -a CUT_ARR <<< "${cut}"
             for cut_type in "${CUT_ARR[@]}"; do
-
-              # --- run cut_for in a controlled way, capture stdout/stderr to a file ---
-              LOGFILE="/tmp/cut_for_${s}_${cut_type}.log"
-              rm -f "$LOGFILE" || true
-              echo ">>> START cut_for $s $cut_type at $(date -u +"%Y-%m-%dT%H:%M:%SZ")" >> "$LOGFILE"
-
-              # temporarily disable errexit so we can inspect the exit code
-              set +e
-              # run cut_for and pipe both stdout+stderr to log (preserve exit code)
-              cut_for "$s" "$cut_type" >> "$LOGFILE" 2>&1
-              RC=$?
-              set -e
-
-              echo ">>> END cut_for $s $cut_type with rc=$RC at $(date -u +"%Y-%m-%dT%H:%M:%SZ")" >> "$LOGFILE"
-
-              if [ $RC -ne 0 ]; then
-                echo "⚠️ cut_for failed for framework='$s' cut='$cut_type' (rc=$RC). See tail of $LOGFILE"
-                echo "---------- tail $LOGFILE ----------"
-                tail -n 200 "$LOGFILE" || true
-                echo "-----------------------------------"
-                # Continue to next framework/cut — do not abort whole job
-                continue
-              fi
-
+              cut_for "$s" "$cut_type"
             done
           done
