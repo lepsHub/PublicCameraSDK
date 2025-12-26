@@ -13,8 +13,8 @@
     targets: [
       .binaryTarget(
         name: "CameraSDK",
-        url: "https://github.com/lepsHub/PublicCameraSDK/releases/download/78.2.14/CameraSDK.xcframework.zip",
-        checksum: "a3c177d183cc1b9c32600bec13f2955954fc9c1d54b0206c536ce5b9c6ddd390"
+        url: "https://github.com/lepsHub/PublicCameraSDK/releases/download/78.2.16-BETA.5/CameraSDK.xcframework.zip",
+        checksum: "77cfc02552b40e9e89e0cf68f5ffc4539c799fa99fa9073f239583e90b63fdbc"
       ),
       .target(
         name: "CameraSDKTargets",
